@@ -65,7 +65,7 @@ export default function Categories() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>CATEGORIES</Text>
+      <Text style={styles.title}>MUNYUN KILLERS (Categories)</Text>
 
       <FlatList
         data={categories}
@@ -99,7 +99,7 @@ export default function Categories() {
         onPress={addCategory}
         disabled={saving}
       >
-        <Text style={styles.buttonText}>{saving ? 'ADDING...' : '+ ADD CATEGORY'}</Text>
+        <Text style={styles.buttonText}>{saving ? 'ADDING...' : '+ ADD CATEGORY (Category)'}</Text>
       </TouchableOpacity>
       <View style={{ height: 10 }} />
       <TouchableOpacity style={[styles.button, styles.ghostButton]} onPress={() => router.back()}>

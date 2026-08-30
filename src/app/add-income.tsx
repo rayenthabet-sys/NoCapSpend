@@ -51,7 +51,7 @@ export default function AddIncome() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <GlobalCornerFigure view="frontAlt" size={60} opacity={0.3} position="top-right" />
 
-      <Text style={styles.title}>SECURE THE BAG</Text>
+      <Text style={styles.title}>SECURE BAG (Income)</Text>
 
       <View style={styles.characterRow}>
         <BudgetCharacter
@@ -87,7 +87,7 @@ export default function AddIncome() {
 
       <TouchableOpacity style={styles.recurringRow} onPress={() => setIsRecurring(!isRecurring)}>
         <View style={[styles.checkbox, isRecurring && styles.checkboxChecked]} />
-        <Text style={styles.recurringLabel}>Repeats monthly (recurring bag)</Text>
+        <Text style={styles.recurringLabel}>Repeats monthly (Recurring Income)</Text>
       </TouchableOpacity>
 
       <View style={{ height: 24 }} />
@@ -97,7 +97,7 @@ export default function AddIncome() {
         onPress={saveIncome}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? 'SECURING...' : '+ SECURE BAG (+MUNYUN)'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'SECURING...' : '+ SECURE BAG (Income)'}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 10 }} />
@@ -112,7 +112,7 @@ export default function AddIncome() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, position: 'relative' },
   container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 34, color: colors.text, textAlign: 'center', letterSpacing: 3, marginBottom: 8 },
+  title: { fontFamily: fonts.display, fontSize: 32, color: colors.text, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
   characterRow: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
   input: {
     fontFamily: fonts.body,

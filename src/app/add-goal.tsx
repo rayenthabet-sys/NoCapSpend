@@ -41,7 +41,7 @@ export default function AddGoal() {
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>NEW GOAL</Text>
+      <Text style={styles.title}>NEW GOAL (Goal)</Text>
 
       <TextInput
         style={styles.input}
@@ -73,7 +73,7 @@ export default function AddGoal() {
         onPress={saveGoal}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? 'SAVING...' : 'CREATE GOAL'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'SAVING...' : '+ CREATE GOAL (Goal)'}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 10 }} />

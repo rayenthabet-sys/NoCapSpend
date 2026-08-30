@@ -57,7 +57,7 @@ export default function Goals() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>GOALS</Text>
+      <Text style={styles.title}>BENJI GOALS (Goals)</Text>
 
       <FlatList
         data={goals}
@@ -78,7 +78,7 @@ export default function Goals() {
 
       <Link href="/add-goal" asChild>
         <TouchableOpacity style={StyleSheet.flatten([styles.button, styles.primaryButton])}>
-          <Text style={styles.buttonText}>+ CREATE GOAL</Text>
+          <Text style={styles.buttonText}>+ NEW GOAL (Goal)</Text>
         </TouchableOpacity>
       </Link>
       <View style={{ height: 10 }} />

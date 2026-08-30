@@ -85,7 +85,7 @@ export default function AddExpense() {
       setShake(true);
     } else {
       setActiveReaction('expenseAdded');
-      setReactionText('-$' + numericAmount.toFixed(2) + ' / MUNYUN BLEED');
+      setReactionText('-$' + numericAmount.toFixed(2) + ' / BLEED LOGGED');
     }
 
     setTimeout(() => {
@@ -97,7 +97,7 @@ export default function AddExpense() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <GlobalCornerFigure view="side" size={60} opacity={0.3} position="top-right" />
 
-      <Text style={styles.title}>LOG MUNYUN BLEED</Text>
+      <Text style={styles.title}>MUNYUN BLEED (Expense)</Text>
 
       <View style={styles.characterRow}>
         <BudgetCharacter
@@ -131,7 +131,7 @@ export default function AddExpense() {
         onChangeText={setNote}
       />
 
-      <Text style={styles.label}>MUNYUN KILLER CATEGORY</Text>
+      <Text style={styles.label}>CATEGORY (Munyun Killer)</Text>
       <View style={styles.chipRow}>
         {categories.map((cat) => (
           <TouchableOpacity
@@ -151,7 +151,7 @@ export default function AddExpense() {
 
       <TouchableOpacity style={styles.recurringRow} onPress={() => setIsRecurring(!isRecurring)}>
         <View style={[styles.checkbox, isRecurring && styles.checkboxChecked]} />
-        <Text style={styles.recurringLabel}>Repeats monthly (recurring bleed)</Text>
+        <Text style={styles.recurringLabel}>Repeats monthly (Recurring Expense)</Text>
       </TouchableOpacity>
 
       <View style={{ height: 24 }} />
@@ -161,7 +161,7 @@ export default function AddExpense() {
         onPress={saveExpense}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? 'LOGGING...' : 'LOG BLEED'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'LOGGING...' : 'LOG BLEED (Expense)'}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 10 }} />
@@ -176,7 +176,7 @@ export default function AddExpense() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, position: 'relative' },
   container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 34, color: colors.text, textAlign: 'center', letterSpacing: 3, marginBottom: 8 },
+  title: { fontFamily: fonts.display, fontSize: 32, color: colors.text, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
   characterRow: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
   input: {
     fontFamily: fonts.body,
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
   },
-  label: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.textMuted, marginBottom: 10, letterSpacing: 2 },
+  label: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.textMuted, marginBottom: 10, letterSpacing: 1.5 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   chip: {
     borderWidth: 1,
