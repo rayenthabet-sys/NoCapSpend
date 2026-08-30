@@ -31,7 +31,7 @@ export default function Categories() {
 
   async function addCategory() {
     if (!name.trim()) {
-      Alert.alert('Missing name', 'Enter a category name.');
+      Alert.alert('Missing name', 'Enter a sector name.');
       return;
     }
     setSaving(true);
@@ -50,7 +50,7 @@ export default function Categories() {
   }
 
   function confirmDelete(category) {
-    Alert.alert('Delete Category', `Delete "${category.name}"? Expenses already using it will keep their history, just show no category.`, [
+    Alert.alert('Delete Sector', `Delete "${category.name}"? Expenses already using it will keep their history, just show no sector.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -65,7 +65,7 @@ export default function Categories() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>MUNYUN KILLERS (Categories)</Text>
+      <Text style={styles.title}>DRAIN SECTORS (Categories)</Text>
 
       <FlatList
         data={categories}
@@ -79,7 +79,7 @@ export default function Categories() {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <BudgetCharacter character="master" size="small" animated />
-            <Text style={styles.emptyTitle}>NO CATEGORIES YET.</Text>
+            <Text style={styles.emptyTitle}>NO DRAIN SECTORS YET.</Text>
             <Text style={styles.emptyText}>Add your first spending category below.</Text>
           </View>
         }
@@ -89,7 +89,7 @@ export default function Categories() {
 
       <TextInput
         style={styles.input}
-        placeholder="New category name (e.g. Food, Travel)"
+        placeholder="New sector name (e.g. Food, Travel, Studio)"
         placeholderTextColor={colors.textSecondary}
         value={name}
         onChangeText={setName}
@@ -99,7 +99,7 @@ export default function Categories() {
         onPress={addCategory}
         disabled={saving}
       >
-        <Text style={styles.buttonText}>{saving ? 'ADDING...' : '+ ADD CATEGORY (Category)'}</Text>
+        <Text style={styles.buttonText}>{saving ? 'ADDING...' : '+ ADD SECTOR (Category)'}</Text>
       </TouchableOpacity>
       <View style={{ height: 10 }} />
       <TouchableOpacity style={[styles.button, styles.ghostButton]} onPress={() => router.back()}>
@@ -111,7 +111,7 @@ export default function Categories() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, paddingTop: 60, paddingBottom: 40, backgroundColor: colors.background, maxWidth: 580, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 36, color: colors.text, textAlign: 'center', marginBottom: 20, letterSpacing: 3 },
+  title: { fontFamily: fonts.display, fontSize: 32, color: colors.text, textAlign: 'center', marginBottom: 20, letterSpacing: 2.5 },
   categoryRow: {
     backgroundColor: colors.card,
     borderRadius: radii.sm,

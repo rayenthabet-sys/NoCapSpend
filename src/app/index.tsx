@@ -119,7 +119,7 @@ export default function Home() {
           setShowReaction(true);
           setShakeTrigger(v => !v);
         } else if (remainingVal > 150) {
-          setReactionText('WE UP. (STACKIN\' BENJIS)');
+          setReactionText('WE UP. (STACKIN\' BANDS)');
           setShowReaction(true);
           setPulseTrigger(v => !v);
         }
@@ -244,7 +244,7 @@ export default function Home() {
         {/* ── Total Savings Card ───────────────────────────────── */}
         <BudgetCard style={styles.savingsCard}>
           <GlobalCornerFigure view="frontAlt" size={48} opacity={0.35} position="bottom-right" />
-          <Text style={styles.cardSectionLabel}>TOTAL MUNYUN (Savings)</Text>
+          <Text style={styles.cardSectionLabel}>TOTAL BANDS (Savings)</Text>
           {fetching ? (
             <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
           ) : (
@@ -280,13 +280,13 @@ export default function Home() {
         {!fetching && (
           <View style={styles.statRow}>
             <View style={[styles.statCard, { marginRight: 6 }]}>
-              <Text style={styles.statCardLabel}>FREE MUNYUN (Available)</Text>
+              <Text style={styles.statCardLabel}>UNLOCKED BANDS (Available)</Text>
               <Text style={[styles.statCardValue, available < 0 && styles.dangerText]}>
                 ${available.toFixed(2)}
               </Text>
             </View>
             <View style={[styles.statCard, { marginLeft: 6 }]}>
-              <Text style={styles.statCardLabel}>IN BENJIS (Goals)</Text>
+              <Text style={styles.statCardLabel}>LOCKED BANDS (Goals)</Text>
               <Text style={[styles.statCardValue, { color: colors.goals }]}>
                 ${reservedForGoals.toFixed(2)}
               </Text>
@@ -297,7 +297,7 @@ export default function Home() {
         {/* ── Savings Line Chart ────────────────────────────────── */}
         {lineChartData && (
           <BudgetCard>
-            <SectionHeader title="MUNYUN OVER TIME" />
+            <SectionHeader title="BANDS OVER TIME" />
             <LineChart
               data={lineChartData}
               width={chartWidth}
@@ -313,7 +313,7 @@ export default function Home() {
         {/* ── Category breakdown list ───────────────────────────── */}
         {categoryBreakdown.length > 0 && (
           <BudgetCard>
-            <SectionHeader title="WHERE THE MUNYUN WENT" />
+            <SectionHeader title="WHERE THE BANDS WENT" />
             {categoryBreakdown.map(([name, total]) => (
               <View key={name} style={styles.breakdownRow}>
                 <Text style={styles.breakdownName}>{name}</Text>
@@ -326,7 +326,7 @@ export default function Home() {
         {/* ── Pie Chart ────────────────────────────────────────── */}
         {pieChartData && (
           <BudgetCard>
-            <SectionHeader title="MUNYUN SPLIT" />
+            <SectionHeader title="BANDS SPLIT" />
             <PieChart
               data={pieChartData}
               width={chartWidth}
@@ -344,7 +344,7 @@ export default function Home() {
           <BudgetCard>
             <View style={styles.emptyState}>
               <BudgetCharacter character="master" size="medium" animated />
-              <Text style={styles.emptyTitle}>NO MUNYUN YET.</Text>
+              <Text style={styles.emptyTitle}>NO BANDS YET.</Text>
               <Text style={styles.emptyBody}>Secure the bag or log an expense to start stackin'.</Text>
             </View>
           </BudgetCard>
@@ -354,31 +354,31 @@ export default function Home() {
         <View style={styles.navSection}>
           <Link href="/add-expense" asChild>
             <TouchableOpacity style={StyleSheet.flatten([styles.navBtn, styles.navBtnAccent])}>
-              <Text style={styles.navBtnText}>- MUNYUN BLEED (Expense)</Text>
+              <Text style={styles.navBtnText}>- BLEED (Expense)</Text>
             </TouchableOpacity>
           </Link>
           <View style={styles.navGap} />
           <Link href="/add-income" asChild>
             <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>+ SECURE BAG (Income)</Text>
+              <Text style={styles.navBtnText}>+ BAG IN (Income)</Text>
             </TouchableOpacity>
           </Link>
           <View style={styles.navGap} />
           <Link href="/goals" asChild>
             <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>BENJI GOALS (Goals)</Text>
+              <Text style={styles.navBtnText}>LOCKED BANDS (Goals)</Text>
             </TouchableOpacity>
           </Link>
           <View style={styles.navGap} />
           <Link href="/budgets" asChild>
             <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>MUNYUN LIMITS (Budgets)</Text>
+              <Text style={styles.navBtnText}>BAND LIMITS (Budgets)</Text>
             </TouchableOpacity>
           </Link>
           <View style={styles.navGap} />
           <Link href="/categories" asChild>
             <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>MUNYUN KILLERS (Categories)</Text>
+              <Text style={styles.navBtnText}>DRAIN SECTORS (Categories)</Text>
             </TouchableOpacity>
           </Link>
         </View>
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
   },
-  statCardLabel:    { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, letterSpacing: 1.5, marginBottom: 6, textTransform: 'uppercase' },
+  statCardLabel:    { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
   statCardValue:    { fontFamily: fonts.bodyBold, fontSize: 20, color: colors.text },
   dangerText:       { color: colors.expense },
 

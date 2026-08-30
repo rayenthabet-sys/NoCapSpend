@@ -97,7 +97,7 @@ export default function AddExpense() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <GlobalCornerFigure view="side" size={60} opacity={0.3} position="top-right" />
 
-      <Text style={styles.title}>MUNYUN BLEED (Expense)</Text>
+      <Text style={styles.title}>BLEED (Expense)</Text>
 
       <View style={styles.characterRow}>
         <BudgetCharacter
@@ -131,7 +131,7 @@ export default function AddExpense() {
         onChangeText={setNote}
       />
 
-      <Text style={styles.label}>CATEGORY (Munyun Killer)</Text>
+      <Text style={styles.label}>DRAIN SECTOR (Category)</Text>
       <View style={styles.chipRow}>
         {categories.map((cat) => (
           <TouchableOpacity
@@ -176,7 +176,7 @@ export default function AddExpense() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, position: 'relative' },
   container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 32, color: colors.text, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
+  title: { fontFamily: fonts.display, fontSize: 34, color: colors.text, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
   characterRow: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
   input: {
     fontFamily: fonts.body,

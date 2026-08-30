@@ -54,7 +54,7 @@ export default function Login() {
       </View>
 
       <Text style={styles.title}>BUDGET BUDDY</Text>
-      <Text style={styles.subtitle}>COUNTIN' MUNYUN & BENJIS</Text>
+      <Text style={styles.subtitle}>COUNTIN' BANDS & RACKS</Text>
 
       <TextInput
         style={styles.input}

@@ -1,11 +1,10 @@
 // ─────────────────────────────────────────────────────────────────
 // Budget Buddy — Slang and Formatting Engine
-// Opium / Underground Money Terminology with clear meaning tags:
-// Munyun, Benjis, Racks, Bands, Bag, Bleed
+// Option B: Bands & Bleed Terminology with (Meaning) tags
 // ─────────────────────────────────────────────────────────────────
 
 /**
- * Format money with slang racks notation if amount >= 100
+ * Format money with slang racks/bands notation if amount >= 100
  * e.g. 1200 -> "$1,200.00 (12 RACKS)"
  */
 export function formatMunyun(amount, options = {}) {
@@ -28,26 +27,26 @@ export function getRacksOnly(amount) {
   return `${racks} ${Number(racks) === 1 ? 'RACK' : 'RACKS'}`;
 }
 
-// Slang screen labels with intuitive (Meanings)
+// Option B screen labels with intuitive (Meanings)
 export const slangLabels = {
   appTitle:          'BUDGET BUDDY',
-  appSubtitle:       'COUNTIN\' MUNYUN & BENJIS',
-  totalSavings:      'TOTAL MUNYUN (Savings)',
+  appSubtitle:       'COUNTIN\' BANDS & RACKS',
+  totalSavings:      'TOTAL BANDS (Savings)',
   thisMonth:         'THIS MONTH\'S BAG',
   income:            'BAG IN (Income)',
   expense:           'BLEED (Expense)',
-  available:         'FREE MUNYUN (Available)',
-  inGoals:           'IN BENJIS (Goals)',
-  savingsChart:      'MUNYUN OVER TIME',
-  categoryBreakdown: 'WHERE THE MUNYUN WENT',
-  categorySection:   'MUNYUN KILLERS (Categories)',
-  goalsTitle:        'BENJI GOALS (Goals)',
+  available:         'UNLOCKED BANDS (Available)',
+  inGoals:           'LOCKED BANDS (Goals)',
+  savingsChart:      'BANDS OVER TIME',
+  categoryBreakdown: 'WHERE THE BANDS WENT',
+  categorySection:   'DRAIN SECTORS (Categories)',
+  goalsTitle:        'LOCKED BANDS (Goals)',
   addGoalTitle:      'NEW GOAL (Goal)',
-  addExpenseTitle:   'MUNYUN BLEED (Expense)',
-  addIncomeTitle:    'SECURE BAG (Income)',
-  categoriesTitle:   'MUNYUN KILLERS (Categories)',
-  budgetsTitle:      'MUNYUN LIMITS (Budgets)',
-  emptyGoals:        'No goals yet. What munyun are we stackin\' for?',
-  emptyCategories:   'No munyun killers yet.',
-  emptyBudgets:      'No munyun limits set for this month.',
+  addExpenseTitle:   'BLEED (Expense)',
+  addIncomeTitle:    'BAG IN (Income)',
+  categoriesTitle:   'DRAIN SECTORS (Categories)',
+  budgetsTitle:      'BAND LIMITS (Budgets)',
+  emptyGoals:        'No goals yet. What bands are we stackin\' for?',
+  emptyCategories:   'No drain sectors found.',
+  emptyBudgets:      'No band limits set for this month.',
 };

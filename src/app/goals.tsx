@@ -57,7 +57,7 @@ export default function Goals() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>BENJI GOALS (Goals)</Text>
+      <Text style={styles.title}>LOCKED BANDS (Goals)</Text>
 
       <FlatList
         data={goals}

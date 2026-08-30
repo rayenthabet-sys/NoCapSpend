@@ -150,7 +150,7 @@ export default function Budgets() {
       keyExtractor={(item) => item.id}
       ListHeaderComponent={
         <>
-          <Text style={styles.title}>MUNYUN LIMITS (Budgets)</Text>
+          <Text style={styles.title}>BAND LIMITS (Budgets)</Text>
           <View style={styles.characterRow}>
             <BudgetCharacter
               reaction={activeReaction}

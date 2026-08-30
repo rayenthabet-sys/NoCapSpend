@@ -51,7 +51,7 @@ export default function AddIncome() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <GlobalCornerFigure view="frontAlt" size={60} opacity={0.3} position="top-right" />
 
-      <Text style={styles.title}>SECURE BAG (Income)</Text>
+      <Text style={styles.title}>BAG IN (Income)</Text>
 
       <View style={styles.characterRow}>
         <BudgetCharacter
@@ -112,7 +112,7 @@ export default function AddIncome() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, position: 'relative' },
   container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 32, color: colors.text, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
+  title: { fontFamily: fonts.display, fontSize: 34, color: colors.text, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
   characterRow: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
   input: {
     fontFamily: fonts.body,
