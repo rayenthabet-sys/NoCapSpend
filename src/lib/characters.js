@@ -6,23 +6,32 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // global character view definitions live here.
 // ─────────────────────────────────────────────────────────────────
 
-// ── Processed (transparent background) assets ────────────────────
+// ── Optimized WebP assets (Crisp retina downscaled, 90% size reduction) ──
 export const characterAssets = {
-  master:     require('../../assets/characters/processed/carti-master.png'),
-  selfTitled: require('../../assets/characters/processed/carti-self-titled.png'),
-  dieLit:     require('../../assets/characters/processed/carti-die-lit.png'),
-  wlr:        require('../../assets/characters/processed/carti-wlr.png'),
-  global:     require('../../assets/characters/processed/carti-global.png'),
+  master:     require('../../assets/characters/optimized/carti-master.webp'),
+  selfTitled: require('../../assets/characters/optimized/carti-self-titled.webp'),
+  dieLit:     require('../../assets/characters/optimized/carti-die-lit.webp'),
+  wlr:        require('../../assets/characters/optimized/carti-wlr.webp'),
+  global:     require('../../assets/characters/optimized/carti-global.webp'),
   bunny:      null,
+};
+
+// ── Individual cropped global corner figures (23KB-33KB each) ──
+export const globalCornerAssets = {
+  front:    require('../../assets/characters/optimized/global-front.webp'),
+  frontAlt: require('../../assets/characters/optimized/global-frontAlt.webp'),
+  side:     require('../../assets/characters/optimized/global-side.webp'),
+  back:     require('../../assets/characters/optimized/global-back.webp'),
 };
 
 // ── Native aspect ratios (width / height) ─────────────────────────
 export const characterAspectRatio = {
-  master:     1024 / 1536,  // ~0.667 — portrait
-  selfTitled: 1024 / 1535,  // ~0.667 — portrait
-  dieLit:     1024 / 1535,  // ~0.667 — portrait
-  wlr:        1024 / 1536,  // ~0.667 — portrait
-  global:     1536 / 1024,  // ~1.5   — landscape (4-view sheet)
+  master:     512 / 768,    // ~0.667 — portrait
+  selfTitled: 512 / 768,    // ~0.667 — portrait
+  dieLit:     512 / 768,    // ~0.667 — portrait
+  wlr:        512 / 768,    // ~0.667 — portrait
+  global:     768 / 512,    // ~1.5   — landscape (4-view sheet)
+  corner:     256 / 384,    // ~0.667 — individual view portrait
   bunny:      1,
 };
 
@@ -65,16 +74,12 @@ export const characterSizes = {
   nano:   44,
   micro:  60,
   small:  80,
-  medium: 160,
-  large:  220,
-  hero:   300,
+  medium: 150,
+  large:  210,
+  hero:   260,
 };
 
 // ── Persistent character state logic ──────────────────────────────
-// Self-titled when remaining > 150
-// WLR when over budget (remaining < 0 or isOverBudget)
-// Die Lit when expense was added (stays for 1 minute / 60s)
-// Master otherwise
 const EXPENSE_TIMESTAMP_KEY = '@budget_buddy_last_expense_ts';
 let inMemoryExpenseTs = 0;
 
@@ -99,13 +104,6 @@ export async function getLastExpenseTimestamp() {
   return 0;
 }
 
-/**
- * Determine persistent active character based on user rules:
- * - wlr: when over budget (remaining < 0 or isOverBudget)
- * - dieLit: when expense was added within the last 60 seconds
- * - selfTitled: when remaining money is above 150
- * - master: otherwise
- */
 export function resolvePersistentCharacter({ remaining = 0, isOverBudget = false, lastExpenseTimestamp = 0 }) {
   if (isOverBudget || remaining < 0) {
     return 'wlr';

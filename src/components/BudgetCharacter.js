@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, View, Image, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, memo } from 'react';
+import { Animated, View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import {
   characterAssets,
   characterAspectRatio,
@@ -12,25 +13,21 @@ import { animation } from '../lib/theme';
 /**
  * BudgetCharacter
  *
- * Reusable character component. Accepts either:
- *   - `character` prop: explicit character key ("master", "wlr", etc.)
- *   - `reaction` prop: semantic event key ("overBudget", "incomeAdded", etc.)
- *     which resolves to a character via reactionCharacterMap
- *
- * If both are provided, `reaction` takes precedence.
+ * Performant character component powered by expo-image (Glide/Metal hardware acceleration).
+ * Subtle native-driven idle bob animation that safely stops on unmount.
  *
  * Props:
  *   character   string   "master" | "selfTitled" | "dieLit" | "wlr" | "global" | "bunny"
  *   reaction    string   see reactionCharacterMap in characters.js
- *   size        string   "small" | "medium" | "large" | "hero"  (default: "medium")
+ *   size        string   "nano" | "micro" | "small" | "medium" | "large" | "hero"  (default: "medium")
  *   animated    bool     enable idle bob animation (default: true)
- *   shake       bool     trigger a shake animation on mount (default: false)
- *   pulse       bool     trigger a scale-up pulse on mount (default: false)
+ *   shake       bool     trigger a shake animation (default: false)
+ *   pulse       bool     trigger a scale-up pulse (default: false)
  *   globalView  string   for global character: "front"|"frontAlt"|"side"|"back" (default: "front")
  *   style       object   additional container style overrides
  *   accessibilityLabel  string
  */
-export default function BudgetCharacter({
+function BudgetCharacterComponent({
   character,
   reaction,
   size = 'medium',
@@ -51,11 +48,10 @@ export default function BudgetCharacter({
   // Pixel height for this size preset
   const heightPx = characterSizes[size] || characterSizes.medium;
   // Width auto-calculated from stored aspect ratio
-  const aspectRatio = characterAspectRatio[resolvedKey] || 1;
+  const aspectRatio = characterAspectRatio[resolvedKey] || 0.667;
 
-  // For the global sheet (4-view landscape), we window into one quadrant
+  // For the global sheet (4-view landscape)
   const isGlobal = resolvedKey === 'global';
-  // Each view is 25% of the total sheet width
   const globalViewIndex = globalViews[globalView] ?? 0;
 
   // ── Animations ───────────────────────────────────────────────────
@@ -63,7 +59,7 @@ export default function BudgetCharacter({
   const shakeX  = useRef(new Animated.Value(0)).current;
   const scaleV  = useRef(new Animated.Value(1)).current;
 
-  // Idle bob — runs continuously while `animated` is true
+  // Idle bob — subtle ±3px float with 2200ms cycle
   useEffect(() => {
     if (!enableAnimation) {
       bobY.setValue(0);
@@ -72,13 +68,13 @@ export default function BudgetCharacter({
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(bobY, {
-          toValue: -4,
-          duration: animation.bob,
+          toValue: -3,
+          duration: 1100,
           useNativeDriver: true,
         }),
         Animated.timing(bobY, {
-          toValue: 4,
-          duration: animation.bob,
+          toValue: 3,
+          duration: 1100,
           useNativeDriver: true,
         }),
       ])
@@ -87,25 +83,25 @@ export default function BudgetCharacter({
     return () => loop.stop();
   }, [enableAnimation, bobY]);
 
-  // Shake — triggered when `shake` prop changes to true
+  // Shake — triggered when `shake` prop changes
   useEffect(() => {
     if (!shake) return;
     Animated.sequence([
-      Animated.timing(shakeX, { toValue: 7,  duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: -7, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 5,  duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: -5, duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 3,  duration: 50, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 0,  duration: 50, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 6,  duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: -6, duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 4,  duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: -4, duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 2,  duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 0,  duration: 45, useNativeDriver: true }),
     ]).start();
   }, [shake, shakeX]);
 
-  // Pulse — triggered when `pulse` prop changes to true
+  // Pulse — triggered when `pulse` prop changes
   useEffect(() => {
     if (!pulse) return;
     Animated.sequence([
       Animated.timing(scaleV, {
-        toValue: 1.08,
+        toValue: 1.06,
         duration: animation.fast,
         useNativeDriver: true,
       }),
@@ -119,34 +115,13 @@ export default function BudgetCharacter({
 
   // ── Rendering ─────────────────────────────────────────────────────
   if (!asset) {
-    // bunny fallback — simple emoji placeholder
-    return (
-      <View
-        style={[styles.bunnyContainer, { width: heightPx, height: heightPx }, style]}
-        accessible
-        accessibilityLabel={accessibilityLabel || 'character'}
-      >
-        <Animated.Text
-          style={[
-            styles.bunnyText,
-            { fontSize: heightPx * 0.75, transform: [{ translateY: bobY }] },
-          ]}
-        >
-          🐰
-        </Animated.Text>
-      </View>
-    );
+    return null;
   }
 
   if (isGlobal) {
-    // Render the global 4-view sheet windowed to one view
-    // The full sheet width at the rendered height
     const sheetHeight = heightPx;
-    // The full sheet is 1536×1024, so at `sheetHeight` the total width is:
-    const sheetWidth = sheetHeight * (1536 / 1024);
-    // Each view is 1/4 of the total sheet width
+    const sheetWidth = sheetHeight * (768 / 512);
     const viewWidth = sheetWidth / 4;
-    // Offset to show the correct view
     const offsetX = -(globalViewIndex * viewWidth);
 
     return (
@@ -175,14 +150,15 @@ export default function BudgetCharacter({
             position: 'absolute',
             left: offsetX,
           }}
-          resizeMode="contain"
+          contentFit="contain"
+          cachePolicy="memory-disk"
         />
       </Animated.View>
     );
   }
 
   // Standard portrait character
-  const characterWidth = heightPx * aspectRatio;
+  const characterWidth = Math.round(heightPx * aspectRatio);
 
   return (
     <Animated.View
@@ -204,20 +180,17 @@ export default function BudgetCharacter({
       <Image
         source={asset}
         style={{ width: characterWidth, height: heightPx }}
-        resizeMode="contain"
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        priority="high"
       />
     </Animated.View>
   );
 }
 
+export default memo(BudgetCharacterComponent);
+
 const styles = StyleSheet.create({
-  bunnyContainer: {
-    justifyContent: 'center',
-    alignItems:     'center',
-  },
-  bunnyText: {
-    textAlign: 'center',
-  },
   globalContainer: {
     overflow: 'hidden',
     position: 'relative',

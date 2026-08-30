@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { Redirect, Link, useFocusEffect } from 'expo-router';
 import {
   View, ActivityIndicator, Text, StyleSheet, ScrollView,
@@ -11,7 +11,7 @@ import { recalculateCurrentMonthLedger, getTotalReservedForGoals, getSavingsHist
 import { ensureRecurringEntriesForThisMonth } from '../lib/recurring';
 import { colors, fonts, radii, spacing, chartConfig } from '../lib/theme';
 import { resolvePersistentCharacter, getLastExpenseTimestamp } from '../lib/characters';
-import { formatMunyun, getRacksOnly } from '../lib/slang';
+import { getRacksOnly } from '../lib/slang';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import BudgetCard from '../components/BudgetCard';
@@ -150,6 +150,43 @@ export default function Home() {
     });
   }
 
+  const remaining  = income - expenses;
+  const available  = accumulatedSavings - reservedForGoals;
+  const screenW    = Dimensions.get('window').width;
+  const chartWidth = Math.min(screenW - 48, 580);
+
+  // Memoized character resolution
+  const activeCharacter = useMemo(() => {
+    return resolvePersistentCharacter({
+      remaining,
+      isOverBudget: remaining < 0,
+      lastExpenseTimestamp: lastExpenseTs,
+    });
+  }, [remaining, lastExpenseTs]);
+
+  const totalRacks = useMemo(() => getRacksOnly(accumulatedSavings), [accumulatedSavings]);
+
+  // Memoized chart dataset objects
+  const lineChartData = useMemo(() => {
+    if (savingsHistory.length <= 1) return null;
+    return {
+      labels: savingsHistory.map((row) => formatMonthLabel(row.month)),
+      datasets: [{ data: savingsHistory.map((row) => Number(row.accumulated_total)) }],
+    };
+  }, [savingsHistory]);
+
+  const pieChartData = useMemo(() => {
+    if (categoryBreakdown.length === 0) return null;
+    return categoryBreakdown.map(([name, total], index) => ({
+      name,
+      amount: total,
+      color: pieColors[index % pieColors.length],
+      legendFontColor: colors.textSecondary,
+      legendFontSize: 11,
+      legendFontFamily: fonts.body,
+    }));
+  }, [categoryBreakdown]);
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -160,29 +197,11 @@ export default function Home() {
 
   if (!session) return <Redirect href="/login" />;
 
-  const remaining  = income - expenses;
-  const available  = accumulatedSavings - reservedForGoals;
-  const screenW    = Dimensions.get('window').width;
-  const chartWidth = Math.min(screenW - 48, 600);
-
-  // Persistent character resolution:
-  // - wlr: when over budget (remaining < 0)
-  // - dieLit: when expense was added within the last 60s
-  // - selfTitled: when remaining > 150
-  // - master: otherwise
-  const activeCharacter = resolvePersistentCharacter({
-    remaining,
-    isOverBudget: remaining < 0,
-    lastExpenseTimestamp: lastExpenseTs,
-  });
-
-  const totalRacks = getRacksOnly(accumulatedSavings);
-
   return (
     <Animated.View style={[styles.wrapper, { opacity: fadeAnim }]}>
-      {/* Corner Global figures as decorative stamps */}
-      <GlobalCornerFigure view="side" size={70} opacity={0.3} position="top-right" />
-      <GlobalCornerFigure view="back" size={75} opacity={0.25} position="bottom-left" />
+      {/* Corner Global figures as lightweight stamps */}
+      <GlobalCornerFigure view="side" size={60} opacity={0.3} position="top-right" />
+      <GlobalCornerFigure view="back" size={65} opacity={0.25} position="bottom-left" />
 
       {/* SEEYUH logout overlay */}
       {showSeeyuh && (
@@ -224,7 +243,7 @@ export default function Home() {
 
         {/* ── Total Savings Card ───────────────────────────────── */}
         <BudgetCard style={styles.savingsCard}>
-          <GlobalCornerFigure view="frontAlt" size={50} opacity={0.35} position="bottom-right" />
+          <GlobalCornerFigure view="frontAlt" size={48} opacity={0.35} position="bottom-right" />
           <Text style={styles.cardSectionLabel}>TOTAL MUNYUN STASH</Text>
           {fetching ? (
             <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
@@ -276,14 +295,11 @@ export default function Home() {
         )}
 
         {/* ── Savings Line Chart ────────────────────────────────── */}
-        {savingsHistory.length > 1 && (
+        {lineChartData && (
           <BudgetCard>
             <SectionHeader title="MUNYUN OVER TIME" />
             <LineChart
-              data={{
-                labels:   savingsHistory.map((row) => formatMonthLabel(row.month)),
-                datasets: [{ data: savingsHistory.map((row) => Number(row.accumulated_total)) }],
-              }}
+              data={lineChartData}
               width={chartWidth}
               height={160}
               chartConfig={chartConfig}
@@ -308,18 +324,11 @@ export default function Home() {
         )}
 
         {/* ── Pie Chart ────────────────────────────────────────── */}
-        {categoryBreakdown.length > 0 && (
+        {pieChartData && (
           <BudgetCard>
             <SectionHeader title="MUNYUN SPLIT" />
             <PieChart
-              data={categoryBreakdown.map(([name, total], index) => ({
-                name,
-                amount:          total,
-                color:           pieColors[index % pieColors.length],
-                legendFontColor: colors.textSecondary,
-                legendFontSize:  11,
-                legendFontFamily: fonts.body,
-              }))}
+              data={pieChartData}
               width={chartWidth}
               height={160}
               chartConfig={{ color: () => colors.text }}
@@ -397,7 +406,7 @@ const styles = StyleSheet.create({
   monthLabel:  { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, letterSpacing: 3, marginTop: 2 },
 
   // Character section with fixed minimum height
-  characterSection: { alignItems: 'center', marginBottom: spacing.md, minHeight: 270, justifyContent: 'center' },
+  characterSection: { alignItems: 'center', marginBottom: spacing.md, minHeight: 260, justifyContent: 'center' },
 
   // Savings hero card
   savingsCard:     { alignItems: 'center', paddingVertical: spacing.lg, position: 'relative', overflow: 'hidden' },

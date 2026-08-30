@@ -1,36 +1,34 @@
-import React from 'react';
-import { View, Image, StyleSheet } from 'react-native';
-import { characterAssets, globalViews } from '../lib/characters';
+import React, { memo } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
+import { globalCornerAssets, characterAspectRatio } from '../lib/characters';
 
 /**
  * GlobalCornerFigure
  *
- * Displays a subtle cropped rotation figure from the global sheet (carti-global.png)
+ * Displays a lightweight (23KB) cropped figure from the global sheet
  * positioned decoratively in corners or card backgrounds.
+ * Powered by expo-image with native caching.
  *
  * Props:
  *   view      "front" | "frontAlt" | "side" | "back" (default: "side")
- *   size      number   height in px (default: 65)
- *   opacity   number   opacity between 0 and 1 (default: 0.45)
+ *   size      number   height in px (default: 60)
+ *   opacity   number   opacity between 0 and 1 (default: 0.35)
  *   position  "bottom-right" | "top-right" | "bottom-left" | "inline"
  *   style     object
  */
-export default function GlobalCornerFigure({
+function GlobalCornerFigureComponent({
   view = 'side',
-  size = 65,
-  opacity = 0.45,
+  size = 60,
+  opacity = 0.35,
   position = 'bottom-right',
   style,
 }) {
-  const asset = characterAssets.global;
+  const asset = globalCornerAssets[view] || globalCornerAssets.side;
   if (!asset) return null;
 
-  const viewIndex = globalViews[view] ?? 2;
-  const sheetHeight = size;
-  const sheetWidth = sheetHeight * (1536 / 1024);
-  const viewWidth = sheetWidth / 4;
-  const offsetX = -(viewIndex * viewWidth);
-
+  const height = size;
+  const width = Math.round(height * characterAspectRatio.corner);
   const posStyle = positionStyles[position] || positionStyles['bottom-right'];
 
   return (
@@ -38,28 +36,26 @@ export default function GlobalCornerFigure({
       style={[
         styles.container,
         posStyle,
-        { width: viewWidth, height: sheetHeight, opacity },
+        { width, height, opacity },
         style,
       ]}
       pointerEvents="none"
     >
       <Image
         source={asset}
-        style={{
-          width: sheetWidth,
-          height: sheetHeight,
-          position: 'absolute',
-          left: offsetX,
-        }}
-        resizeMode="contain"
+        style={{ width, height }}
+        contentFit="contain"
+        cachePolicy="memory-disk"
+        priority="low"
       />
     </View>
   );
 }
 
+export default memo(GlobalCornerFigureComponent);
+
 const styles = StyleSheet.create({
   container: {
-    overflow: 'hidden',
     position: 'absolute',
     zIndex: 1,
   },
