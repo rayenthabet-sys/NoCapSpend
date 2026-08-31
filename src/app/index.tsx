@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { Redirect, Link, useFocusEffect } from 'expo-router';
 import {
   View, ActivityIndicator, Text, StyleSheet, ScrollView,
@@ -12,12 +12,23 @@ import { colors, fonts, radii, spacing } from '../lib/theme';
 import { resolveCharacterState } from '../lib/characterEngine';
 import { getRacksOnly } from '../lib/slang';
 import { showAlert } from '../lib/dialog';
-import { getDailyBudget, getDailyLockEnabled, getTodaySpending, getDailyStatus } from '../lib/dailyBudget';
+import { getDailyBudget, getDailyLockEnabled, getTodaySpending, getDailyStatus, getTodayDateString } from '../lib/dailyBudget';
+import { useNetworkStatus } from '../lib/networkStatus';
+import {
+  cacheWrite,
+  cacheRead,
+  BUCKETS,
+  getPendingTransactions,
+  getOfflineTodaySpending,
+  getPendingTodaySpending,
+} from '../lib/offlineStore';
+import { syncPendingTransactions } from '../lib/syncManager';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import BudgetCard from '../components/BudgetCard';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
 import DailyMeter from '../components/DailyMeter';
+import NetworkBanner from '../components/NetworkBanner';
 
 function getMonthRange() {
   const now = new Date();
@@ -39,6 +50,7 @@ export default function Home() {
   const auth = useAuth() as any;
   const session = auth?.session;
   const loading = auth?.loading;
+  const { status, isOnline } = useNetworkStatus();
 
   // ── Financial state ──────────────────────────────────────────────
   const [income, setIncome] = useState(0);
@@ -57,55 +69,141 @@ export default function Home() {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const [showFarewell, setShowFarewell] = useState(false);
 
+  // ── Auto-sync pending transactions whenever online ───────────────
+  const triggerSync = useCallback(async () => {
+    if (!session || !isOnline) return;
+    try {
+      await syncPendingTransactions(session.user.id);
+    } catch (err) {
+      console.warn('[Home] auto-sync error:', err);
+    }
+  }, [session, isOnline]);
+
   // ── Data loading ─────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     if (!session) return;
     setFetching(true);
     try {
-      await ensureRecurringEntriesForThisMonth(session.user.id);
+      if (isOnline) {
+        // Sync pending transactions first
+        await triggerSync();
 
-      const { start, end } = getMonthRange();
-      const [incomeRes, expenseRes] = await Promise.all([
-        supabase.from('income_entries').select('amount').eq('user_id', session.user.id).gte('date', start).lte('date', end),
-        supabase.from('expenses').select('amount').eq('user_id', session.user.id).gte('date', start).lte('date', end),
-      ]);
+        await ensureRecurringEntriesForThisMonth(session.user.id);
 
-      const incomeTotal  = (incomeRes.data  || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
-      const expenseTotal = (expenseRes.data || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
+        const { start, end } = getMonthRange();
+        const [incomeRes, expenseRes] = await Promise.all([
+          supabase.from('income_entries').select('amount, date').eq('user_id', session.user.id).gte('date', start).lte('date', end),
+          supabase.from('expenses').select('amount, date').eq('user_id', session.user.id).gte('date', start).lte('date', end),
+        ]);
 
-      const accumulated = await recalculateCurrentMonthLedger(session.user.id, incomeTotal, expenseTotal);
-      const reserved    = await getTotalReservedForGoals(session.user.id);
+        const serverIncomeTotal  = (incomeRes.data  || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
+        const serverExpenseTotal = (expenseRes.data || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
 
-      setIncome(incomeTotal);
-      setExpenses(expenseTotal);
-      setAccumulatedSavings(accumulated);
-      setReservedForGoals(reserved);
+        const accumulated = await recalculateCurrentMonthLedger(session.user.id, serverIncomeTotal, serverExpenseTotal);
+        const reserved    = await getTotalReservedForGoals(session.user.id);
+
+        // Include any remaining pending offline transactions in dashboard view
+        const pending = await getPendingTransactions(session.user.id);
+        const pendingIncome = pending
+          .filter(tx => tx.type === 'income' && tx.date >= start && tx.date <= end && tx.syncStatus !== 'failed')
+          .reduce((sum, tx) => sum + Number(tx.amount), 0);
+        const pendingExpenses = pending
+          .filter(tx => tx.type === 'expense' && tx.date >= start && tx.date <= end && tx.syncStatus !== 'failed')
+          .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+        const totalInc = serverIncomeTotal + pendingIncome;
+        const totalExp = serverExpenseTotal + pendingExpenses;
+
+        setIncome(totalInc);
+        setExpenses(totalExp);
+        setAccumulatedSavings(accumulated + (pendingIncome - pendingExpenses));
+        setReservedForGoals(reserved);
+
+        // Cache dashboard data for offline use
+        await cacheWrite(session.user.id, BUCKETS.DASHBOARD, {
+          income: serverIncomeTotal,
+          expenses: serverExpenseTotal,
+          accumulated,
+          reserved,
+        });
+
+        // Cache today's expenses for offline daily spending
+        const today = getTodayDateString();
+        const todayExpenses = (expenseRes.data || []).filter((r: any) => r.date === today);
+        await cacheWrite(session.user.id, BUCKETS.EXPENSES_TODAY, todayExpenses);
+      } else {
+        // Offline mode: load from cache
+        const cached = await cacheRead(session.user.id, BUCKETS.DASHBOARD);
+        const { start, end } = getMonthRange();
+        const pending = await getPendingTransactions(session.user.id);
+
+        const pendingIncome = pending
+          .filter(tx => tx.type === 'income' && tx.date >= start && tx.date <= end && tx.syncStatus !== 'failed')
+          .reduce((sum, tx) => sum + Number(tx.amount), 0);
+        const pendingExpenses = pending
+          .filter(tx => tx.type === 'expense' && tx.date >= start && tx.date <= end && tx.syncStatus !== 'failed')
+          .reduce((sum, tx) => sum + Number(tx.amount), 0);
+
+        if (cached) {
+          const totalInc = (cached.income || 0) + pendingIncome;
+          const totalExp = (cached.expenses || 0) + pendingExpenses;
+          const acc = (cached.accumulated || 0) + (pendingIncome - pendingExpenses);
+
+          setIncome(totalInc);
+          setExpenses(totalExp);
+          setAccumulatedSavings(acc);
+          setReservedForGoals(cached.reserved || 0);
+        } else {
+          // No cache available yet
+          setIncome(pendingIncome);
+          setExpenses(pendingExpenses);
+          setAccumulatedSavings(pendingIncome - pendingExpenses);
+          setReservedForGoals(0);
+        }
+      }
     } catch (err: any) {
       console.error('Failed to load dashboard data:', err);
-      showAlert('Error loading data', err?.message || 'Something went wrong.');
+      // Fallback to cache on network error
+      const cached = await cacheRead(session.user.id, BUCKETS.DASHBOARD);
+      if (cached) {
+        setIncome(cached.income || 0);
+        setExpenses(cached.expenses || 0);
+        setAccumulatedSavings(cached.accumulated || 0);
+        setReservedForGoals(cached.reserved || 0);
+      }
     } finally {
       setFetching(false);
     }
-  }, [session]);
+  }, [session, isOnline, triggerSync]);
 
   const loadDailyData = useCallback(async () => {
     if (!session) return;
     setDailyLoading(true);
     try {
-      const [budget, lock, spent] = await Promise.all([
+      const [budget, lock] = await Promise.all([
         getDailyBudget(),
         getDailyLockEnabled(),
-        getTodaySpending(session.user.id),
       ]);
       setDailyBudget(budget);
       setDailyLockEnabled(lock);
+
+      let spent = 0;
+      if (isOnline) {
+        const [serverSpent, pendingSpent] = await Promise.all([
+          getTodaySpending(session.user.id),
+          getPendingTodaySpending(session.user.id),
+        ]);
+        spent = serverSpent + pendingSpent;
+      } else {
+        spent = await getOfflineTodaySpending(session.user.id);
+      }
       setDailySpent(spent);
     } catch (_) {
       // Non-critical: daily meter degrades gracefully
     } finally {
       setDailyLoading(false);
     }
-  }, [session]);
+  }, [session, isOnline]);
 
   useFocusEffect(
     useCallback(() => {
@@ -178,6 +276,9 @@ export default function Home() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Network status banner */}
+        <NetworkBanner status={status} />
+
         {/* ── Header ──────────────────────────────────────────── */}
         <View style={styles.header}>
           <Text style={styles.appTitle}>BUDGET BUDDY</Text>
@@ -195,7 +296,7 @@ export default function Home() {
             pulse={characterState.pulse}
             isOverBudget={remaining < 0}
           />
-          {/* ReactionText container with fixed height = ZERO layout shift */}
+          {/* ReactionText container with responsive height = ZERO layout shift */}
           <ReactionText
             text={characterState.reactionText}
             visible={true}
@@ -210,7 +311,9 @@ export default function Home() {
             <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
           ) : (
             <>
-              <Text style={styles.heroNumber}>{accumulatedSavings.toFixed(2)} DT</Text>
+              <Text style={styles.heroNumber} numberOfLines={1} adjustsFontSizeToFit>
+                {accumulatedSavings.toFixed(2)} DT
+              </Text>
               {totalRacks && <Text style={styles.racksTag}>{totalRacks}</Text>}
               <Text style={styles.heroSub}>
                 {remaining >= 0 ? '+' : ''}{remaining.toFixed(2)} DT THIS MONTH
@@ -232,13 +335,13 @@ export default function Home() {
           <View style={styles.statRow}>
             <View style={[styles.statCard, { marginRight: 6 }]}>
               <Text style={styles.statCardLabel}>INCOME</Text>
-              <Text style={[styles.statCardValue, { color: colors.income }]}>
+              <Text style={[styles.statCardValue, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>
                 +{income.toFixed(2)} DT
               </Text>
             </View>
             <View style={[styles.statCard, { marginLeft: 6 }]}>
               <Text style={styles.statCardLabel}>EXPENSES</Text>
-              <Text style={[styles.statCardValue, expenses > income && styles.dangerText]}>
+              <Text style={[styles.statCardValue, expenses > income && styles.dangerText]} numberOfLines={1} adjustsFontSizeToFit>
                 -{expenses.toFixed(2)} DT
               </Text>
             </View>
@@ -250,13 +353,13 @@ export default function Home() {
           <View style={styles.statRow}>
             <View style={[styles.statCard, { marginRight: 6 }]}>
               <Text style={styles.statCardLabel}>AVAILABLE BALANCE</Text>
-              <Text style={[styles.statCardValue, available < 0 && styles.dangerText]}>
+              <Text style={[styles.statCardValue, available < 0 && styles.dangerText]} numberOfLines={1} adjustsFontSizeToFit>
                 {available.toFixed(2)} DT
               </Text>
             </View>
             <View style={[styles.statCard, { marginLeft: 6 }]}>
               <Text style={styles.statCardLabel}>LOCKED FOR GOALS</Text>
-              <Text style={[styles.statCardValue, { color: colors.goals }]}>
+              <Text style={[styles.statCardValue, { color: colors.goals }]} numberOfLines={1} adjustsFontSizeToFit>
                 {reservedForGoals.toFixed(2)} DT
               </Text>
             </View>
@@ -328,22 +431,22 @@ const styles = StyleSheet.create({
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   wrapper: { flex: 1, backgroundColor: colors.background, position: 'relative' },
   screen:  { flex: 1 },
-  scrollContent: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 40, maxWidth: 580, alignSelf: 'center', width: '100%' },
+  scrollContent: { paddingTop: 48, paddingHorizontal: 20, paddingBottom: 40, maxWidth: 580, alignSelf: 'center', width: '100%' },
 
   // Header
   header:     { alignItems: 'center', marginBottom: spacing.md },
-  appTitle:   { fontFamily: fonts.display, fontSize: 42, color: colors.textPrimary, letterSpacing: 4 },
-  monthLabel: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary, letterSpacing: 3, marginTop: 2 },
+  appTitle:   { fontFamily: fonts.display, fontSize: 42, color: colors.textPrimary, letterSpacing: 4, textAlign: 'center' },
+  monthLabel: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary, letterSpacing: 3, marginTop: 2, textAlign: 'center' },
 
   // Character section with fixed minimum height
   characterSection: { alignItems: 'center', marginBottom: spacing.md, minHeight: 250, justifyContent: 'center' },
 
   // Savings hero card
-  savingsCard:      { alignItems: 'center', paddingVertical: spacing.lg, position: 'relative', overflow: 'hidden' },
-  cardSectionLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: 2, marginBottom: 8 },
-  heroNumber:       { fontFamily: fonts.bodyBold, fontSize: 42, color: colors.textPrimary },
-  racksTag:         { fontFamily: fonts.display, fontSize: 18, color: colors.primary, letterSpacing: 2, marginTop: 2 },
-  heroSub:          { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 4, letterSpacing: 1 },
+  savingsCard:      { alignItems: 'center', paddingVertical: spacing.lg, position: 'relative', overflow: 'hidden', paddingHorizontal: 16 },
+  cardSectionLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: 2, marginBottom: 8, textAlign: 'center' },
+  heroNumber:       { fontFamily: fonts.bodyBold, fontSize: 40, color: colors.textPrimary, textAlign: 'center' },
+  racksTag:         { fontFamily: fonts.display, fontSize: 18, color: colors.primary, letterSpacing: 2, marginTop: 2, textAlign: 'center' },
+  heroSub:          { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 4, letterSpacing: 1, textAlign: 'center' },
 
   // Stat row cards
   statRow:          { flexDirection: 'row', marginBottom: spacing.md },
@@ -354,9 +457,10 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: colors.border,
     padding: spacing.md,
+    justifyContent: 'center',
   },
-  statCardLabel:    { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
-  statCardValue:    { fontFamily: fonts.bodyBold, fontSize: 18, color: colors.textPrimary },
+  statCardLabel:    { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase', flexShrink: 1 },
+  statCardValue:    { fontFamily: fonts.bodyBold, fontSize: 17, color: colors.textPrimary },
   dangerText:       { color: colors.danger },
 
   // Action Grid
@@ -371,10 +475,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48,
+    paddingHorizontal: 8,
   },
   incomeGridBtn:  { borderColor: colors.income },
   expenseGridBtn: { borderColor: colors.expense },
-  gridBtnText:    { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.textPrimary, letterSpacing: 1 },
+  gridBtnText:    { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.textPrimary, letterSpacing: 1, textAlign: 'center' },
 
   // Navigation buttons
   navSection: { marginTop: spacing.sm },
@@ -387,14 +492,15 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     justifyContent:  'center',
     minHeight:       48,
+    paddingHorizontal: 8,
   },
   navRow:        { flexDirection: 'row' },
   navHalf:       { flex: 1 },
   statsBtn:      { borderColor: colors.primary, backgroundColor: colors.cardElevated },
-  statsBtnText:  { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.primaryBright, letterSpacing: 1.2 },
-  navBtnText:    { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary, letterSpacing: 1.2 },
+  statsBtnText:  { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.primaryBright, letterSpacing: 1.2, textAlign: 'center' },
+  navBtnText:    { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary, letterSpacing: 1.2, textAlign: 'center' },
   settingsBtn:   { borderColor: colors.primary },
-  settingsBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.primary, letterSpacing: 1.2 },
+  settingsBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.primary, letterSpacing: 1.2, textAlign: 'center' },
   navGap:        { height: 8 },
 
   // Logout

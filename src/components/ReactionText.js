@@ -96,19 +96,19 @@ export default function ReactionText({
 
 const styles = StyleSheet.create({
   container: {
-    height:         36,
-    minHeight:      36,
-    maxHeight:      36,
+    minHeight:      44,
     justifyContent: 'center',
     alignItems:     'center',
     width:          '100%',
     marginTop:      4,
+    paddingHorizontal: 8,
   },
   text: {
     fontFamily:    fonts.display,
-    fontSize:      26,
+    fontSize:      24,
     color:         colors.textPrimary,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     textAlign:     'center',
+    flexWrap:      'wrap',
   },
 });

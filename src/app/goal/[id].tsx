@@ -230,17 +230,17 @@ export default function GoalDetail() {
         <View style={styles.statRow}>
           <View style={styles.statCol}>
             <Text style={styles.statLabel}>TARGET</Text>
-            <Text style={styles.statValue}>{Number(goal.target_amount).toFixed(2)} DT</Text>
+            <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{Number(goal.target_amount).toFixed(2)} DT</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statCol}>
             <Text style={styles.statLabel}>SAVED</Text>
-            <Text style={styles.statValue}>{Number(goal.current_amount).toFixed(2)} DT</Text>
+            <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{Number(goal.current_amount).toFixed(2)} DT</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statCol}>
             <Text style={styles.statLabel}>LEFT</Text>
-            <Text style={styles.statValue}>{remaining.toFixed(2)} DT</Text>
+            <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit>{remaining.toFixed(2)} DT</Text>
           </View>
         </View>
         {goal.deadline ? <Text style={styles.deadlineText}>Deadline: {goal.deadline}</Text> : null}
@@ -252,7 +252,7 @@ export default function GoalDetail() {
 
       <View style={styles.sectionHeaderRow}>
         <Text style={styles.sectionTitle}>CONTRIBUTE</Text>
-        <Text style={styles.availableBadge}>Available: {availableSavings.toFixed(2)} DT</Text>
+        <Text style={styles.availableBadge} numberOfLines={1} adjustsFontSizeToFit>Available: {availableSavings.toFixed(2)} DT</Text>
       </View>
 
       <TextInput

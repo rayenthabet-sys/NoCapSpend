@@ -11,11 +11,14 @@ import { supabase } from '../lib/supabase';
 import { getSavingsHistory } from '../lib/savings';
 import { colors, fonts, radii, spacing, chartConfig } from '../lib/theme';
 import { resolveCharacterState } from '../lib/characterEngine';
+import { useNetworkStatus } from '../lib/networkStatus';
+import { cacheWrite, cacheRead, BUCKETS } from '../lib/offlineStore';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import BudgetCard from '../components/BudgetCard';
 import SectionHeader from '../components/SectionHeader';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
+import NetworkBanner from '../components/NetworkBanner';
 
 const pieColors = ['#D4A237', '#8C6818', '#4E9A51', '#C84C32', '#7E6BB0', '#D98A2B', '#BAB6A2'];
 
@@ -45,6 +48,7 @@ export default function Statistics() {
   const auth = useAuth() as any;
   const session = auth?.session;
   const loading = auth?.loading;
+  const { status, isOnline } = useNetworkStatus();
 
   const [savingsHistory, setSavingsHistory] = useState<SavingsHistoryRow[]>([]);
   const [categoryBreakdown, setCategoryBreakdown] = useState<[string, number][]>([]);
@@ -54,35 +58,61 @@ export default function Statistics() {
   const loadStats = useCallback(async () => {
     if (!session) return;
     try {
-      const { start, end } = getMonthRange();
-      const [incomeRes, expenseRes, historyRes, expenseDetails] = await Promise.all([
-        supabase.from('income_entries').select('amount').eq('user_id', session.user.id).gte('date', start).lte('date', end),
-        supabase.from('expenses').select('amount').eq('user_id', session.user.id).gte('date', start).lte('date', end),
-        getSavingsHistory(session.user.id, 6),
-        supabase.from('expenses').select('amount, categories(name)').eq('user_id', session.user.id).gte('date', start).lte('date', end),
-      ]);
+      if (isOnline) {
+        const { start, end } = getMonthRange();
+        const [incomeRes, expenseRes, historyRes, expenseDetails] = await Promise.all([
+          supabase.from('income_entries').select('amount').eq('user_id', session.user.id).gte('date', start).lte('date', end),
+          supabase.from('expenses').select('amount').eq('user_id', session.user.id).gte('date', start).lte('date', end),
+          getSavingsHistory(session.user.id, 6),
+          supabase.from('expenses').select('amount, categories(name)').eq('user_id', session.user.id).gte('date', start).lte('date', end),
+        ]);
 
-      const incTotal = (incomeRes.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
-      const expTotal = (expenseRes.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+        const incTotal = (incomeRes.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
+        const expTotal = (expenseRes.data || []).reduce((sum: number, r: any) => sum + Number(r.amount), 0);
 
-      const breakdown: Record<string, number> = {};
-      (expenseDetails.data || []).forEach((exp: any) => {
-        const catName = exp.categories?.name || (Array.isArray(exp.categories) && exp.categories[0]?.name) || 'Uncategorized';
-        breakdown[catName] = (breakdown[catName] || 0) + Number(exp.amount);
-      });
+        const breakdown: Record<string, number> = {};
+        (expenseDetails.data || []).forEach((exp: any) => {
+          const catName = exp.categories?.name || (Array.isArray(exp.categories) && exp.categories[0]?.name) || 'Uncategorized';
+          breakdown[catName] = (breakdown[catName] || 0) + Number(exp.amount);
+        });
 
-      const sortedBreakdown: [string, number][] = Object.entries(breakdown)
-        .map(([name, amount]) => [name, Number(amount)] as [string, number])
-        .sort((a, b) => b[1] - a[1]);
+        const sortedBreakdown: [string, number][] = Object.entries(breakdown)
+          .map(([name, amount]) => [name, Number(amount)] as [string, number])
+          .sort((a, b) => b[1] - a[1]);
 
-      setIncomeTotal(incTotal);
-      setExpenseTotal(expTotal);
-      setSavingsHistory((historyRes || []) as SavingsHistoryRow[]);
-      setCategoryBreakdown(sortedBreakdown);
+        setIncomeTotal(incTotal);
+        setExpenseTotal(expTotal);
+        setSavingsHistory((historyRes || []) as SavingsHistoryRow[]);
+        setCategoryBreakdown(sortedBreakdown);
+
+        // Cache for offline use
+        await cacheWrite(session.user.id, BUCKETS.STATS, {
+          savingsHistory: historyRes || [],
+          categoryBreakdown: sortedBreakdown,
+          incomeTotal: incTotal,
+          expenseTotal: expTotal,
+        });
+      } else {
+        // Offline: read from cache
+        const cached = await cacheRead(session.user.id, BUCKETS.STATS);
+        if (cached) {
+          setSavingsHistory(cached.savingsHistory || []);
+          setCategoryBreakdown(cached.categoryBreakdown || []);
+          setIncomeTotal(cached.incomeTotal || 0);
+          setExpenseTotal(cached.expenseTotal || 0);
+        }
+      }
     } catch (err) {
       console.error('Failed to load statistics:', err);
+      const cached = await cacheRead(session.user.id, BUCKETS.STATS);
+      if (cached) {
+        setSavingsHistory(cached.savingsHistory || []);
+        setCategoryBreakdown(cached.categoryBreakdown || []);
+        setIncomeTotal(cached.incomeTotal || 0);
+        setExpenseTotal(cached.expenseTotal || 0);
+      }
     }
-  }, [session]);
+  }, [session, isOnline]);
 
   useFocusEffect(
     useCallback(() => {
@@ -144,6 +174,9 @@ export default function Statistics() {
     >
       <GlobalCornerFigure assetId="huey_review" size={60} opacity={0.2} position="top-right" />
 
+      {/* Network banner */}
+      <NetworkBanner status={status} />
+
       {/* ── Header ──────────────────────────────────────────── */}
       <View style={styles.header}>
         <Text style={styles.appTitle}>ANALYTICS & TRENDS</Text>
@@ -169,15 +202,15 @@ export default function Statistics() {
       <View style={styles.kpiRow}>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>SAVINGS RATE</Text>
-          <Text style={[styles.kpiValue, { color: colors.income }]}>{savingsRate}%</Text>
+          <Text style={[styles.kpiValue, { color: colors.income }]} numberOfLines={1} adjustsFontSizeToFit>{savingsRate}%</Text>
         </View>
         <View style={[styles.kpiCard, { marginHorizontal: 8 }]}>
           <Text style={styles.kpiLabel}>MONTHLY EXPENSES</Text>
-          <Text style={styles.kpiValue}>{expenseTotal.toFixed(2)} DT</Text>
+          <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>{expenseTotal.toFixed(2)} DT</Text>
         </View>
         <View style={styles.kpiCard}>
           <Text style={styles.kpiLabel}>TOP CATEGORY</Text>
-          <Text style={styles.kpiValue} numberOfLines={1}>{topCategory}</Text>
+          <Text style={styles.kpiValue} numberOfLines={1} adjustsFontSizeToFit>{topCategory}</Text>
         </View>
       </View>
 
@@ -211,10 +244,10 @@ export default function Statistics() {
             return (
               <View key={name} style={styles.breakdownRow}>
                 <View style={styles.breakdownNameCol}>
-                  <Text style={styles.breakdownName}>{name}</Text>
+                  <Text style={styles.breakdownName} numberOfLines={1} adjustsFontSizeToFit>{name}</Text>
                   <Text style={styles.breakdownPct}>{pct}% of monthly expenses</Text>
                 </View>
-                <Text style={styles.breakdownAmount}>{total.toFixed(2)} DT</Text>
+                <Text style={styles.breakdownAmount} numberOfLines={1} adjustsFontSizeToFit>{total.toFixed(2)} DT</Text>
               </View>
             );
           })}
@@ -253,12 +286,12 @@ export default function Statistics() {
 const styles = StyleSheet.create({
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   screen:  { flex: 1, backgroundColor: colors.background },
-  scrollContent: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 40, maxWidth: 640, alignSelf: 'center', width: '100%' },
+  scrollContent: { paddingTop: 48, paddingHorizontal: 20, paddingBottom: 40, maxWidth: 640, alignSelf: 'center', width: '100%' },
 
   // Header
   header:     { alignItems: 'center', marginBottom: spacing.md },
-  appTitle:   { fontFamily: fonts.display, fontSize: 34, color: colors.textPrimary, letterSpacing: 3 },
-  subLabel:   { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary, letterSpacing: 2, marginTop: 2 },
+  appTitle:   { fontFamily: fonts.display, fontSize: 34, color: colors.textPrimary, letterSpacing: 3, textAlign: 'center' },
+  subLabel:   { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary, letterSpacing: 2, marginTop: 2, textAlign: 'center' },
 
   // Character section
   characterSection: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
@@ -273,20 +306,21 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: spacing.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  kpiLabel: { fontFamily: fonts.bodySemiBold, fontSize: 9, color: colors.textMuted, letterSpacing: 1.5, marginBottom: 4, textTransform: 'uppercase' },
-  kpiValue: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.textPrimary },
+  kpiLabel: { fontFamily: fonts.bodySemiBold, fontSize: 9.5, color: colors.textMuted, letterSpacing: 1.2, marginBottom: 4, textTransform: 'uppercase', textAlign: 'center', flexWrap: 'wrap' },
+  kpiValue: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.textPrimary, textAlign: 'center' },
 
   // Charts
   chartCard: { paddingVertical: spacing.md },
   emptyCardText: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, textAlign: 'center', paddingVertical: 16 },
 
   // Breakdown
-  breakdownRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border },
+  breakdownRow:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.border, gap: 8 },
   breakdownNameCol: { flex: 1 },
   breakdownName:    { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.textPrimary },
   breakdownPct:     { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, marginTop: 2 },
-  breakdownAmount:  { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.textSecondary },
+  breakdownAmount:  { fontFamily: fonts.bodyBold, fontSize: 14, color: colors.textSecondary, flexShrink: 1 },
 
   // Back Button
   backBtn: {
@@ -298,5 +332,5 @@ const styles = StyleSheet.create({
     alignItems:      'center',
     marginTop:       spacing.md,
   },
-  backBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary, letterSpacing: 1.2 },
+  backBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary, letterSpacing: 1.2, textAlign: 'center' },
 });

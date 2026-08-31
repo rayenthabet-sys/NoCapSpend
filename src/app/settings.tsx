@@ -13,8 +13,11 @@ import {
 } from '../lib/dailyBudget';
 import { showAlert } from '../lib/dialog';
 import { useFocusEffect } from 'expo-router';
+import { useNetworkStatus } from '../lib/networkStatus';
+import NetworkBanner from '../components/NetworkBanner';
 
 export default function Settings() {
+  const { status } = useNetworkStatus();
   const [dailyBudgetInput, setDailyBudgetInput] = useState('');
   const [lockEnabled, setLockEnabledState] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,6 +68,9 @@ export default function Settings() {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
+      {/* Network banner */}
+      <NetworkBanner status={status} />
+
       <Text style={styles.title}>SETTINGS</Text>
 
       {/* ── Daily Budget ──────────────────────────────── */}
@@ -137,7 +143,7 @@ export default function Settings() {
 
 const styles = StyleSheet.create({
   screen:    { flex: 1, backgroundColor: colors.background },
-  container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
+  container: { padding: 24, paddingTop: 52, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
 
   title: {
     fontFamily: fonts.display,
@@ -145,7 +151,7 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: 'center',
     letterSpacing: 2.5,
-    marginBottom: 32,
+    marginBottom: 28,
   },
 
   section: {
@@ -169,6 +175,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginBottom: 16,
     lineHeight: 19,
+    flexWrap: 'wrap',
   },
 
   inputRow: {
@@ -200,6 +207,7 @@ const styles = StyleSheet.create({
     color: colors.income,
     marginBottom: 10,
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
 
   toggleRow: {
@@ -214,6 +222,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     flex: 1,
+    flexWrap: 'wrap',
   },
 
   lockWarning: {
@@ -229,6 +238,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.danger,
     lineHeight: 18,
+    flexWrap: 'wrap',
   },
 
   btn: {
@@ -242,5 +252,5 @@ const styles = StyleSheet.create({
   },
   primaryBtn: { backgroundColor: colors.cardElevated, borderColor: colors.primary },
   ghostBtn:   { backgroundColor: colors.card, borderColor: colors.border, marginTop: 16 },
-  btnText:    { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5 },
+  btnText:    { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5, textAlign: 'center' },
 });

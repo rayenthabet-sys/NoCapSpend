@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { View, TextInput, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { safeBack } from '../lib/nav';
@@ -7,15 +7,28 @@ import { useAuth } from '../lib/AuthContext';
 import { colors, fonts, radii, spacing } from '../lib/theme';
 import { getCategoryActualSpend, getEffectiveBudget, firstOfMonth } from '../lib/budgets';
 import { resolveCharacterState } from '../lib/characterEngine';
-import { getDailyBudget, getDailyLockEnabled, getTodaySpending, getDailyStatus } from '../lib/dailyBudget';
+import { getDailyBudget, getDailyLockEnabled, getTodaySpending, getDailyStatus, getTodayDateString } from '../lib/dailyBudget';
 import { showAlert } from '../lib/dialog';
+import { useNetworkStatus } from '../lib/networkStatus';
+import {
+  cacheWrite,
+  cacheRead,
+  BUCKETS,
+  addPendingTransaction,
+  generateLocalId,
+  getOfflineTodaySpending,
+  getPendingTodaySpending,
+} from '../lib/offlineStore';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
+import NetworkBanner from '../components/NetworkBanner';
 
 export default function AddExpense() {
   const auth: any = useAuth();
   const session = auth?.session;
+  const { status, isOnline } = useNetworkStatus();
+
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [categories, setCategories] = useState<any[]>([]);
@@ -33,26 +46,46 @@ export default function AddExpense() {
 
   const loadCategories = useCallback(async () => {
     if (!session) return;
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('type', 'expense')
-      .order('name');
-    if (!error && data) setCategories(data);
-  }, [session]);
+    if (isOnline) {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('type', 'expense')
+        .order('name');
+      if (!error && data) {
+        setCategories(data);
+        await cacheWrite(session.user.id, BUCKETS.CATEGORIES, data);
+      }
+    } else {
+      const cached = await cacheRead(session.user.id, BUCKETS.CATEGORIES);
+      if (Array.isArray(cached)) {
+        setCategories(cached);
+      }
+    }
+  }, [session, isOnline]);
 
   const loadDailyContext = useCallback(async () => {
     if (!session) return;
-    const [budget, lock, spent] = await Promise.all([
+    const [budget, lock] = await Promise.all([
       getDailyBudget(),
       getDailyLockEnabled(),
-      getTodaySpending(session.user.id),
     ]);
     setDailyBudget(budget);
     setLockEnabled(lock);
+
+    let spent = 0;
+    if (isOnline) {
+      const [serverSpent, pendingSpent] = await Promise.all([
+        getTodaySpending(session.user.id),
+        getPendingTodaySpending(session.user.id),
+      ]);
+      spent = serverSpent + pendingSpent;
+    } else {
+      spent = await getOfflineTodaySpending(session.user.id);
+    }
     setDailySpent(spent);
-  }, [session]);
+  }, [session, isOnline]);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,7 +102,7 @@ export default function AddExpense() {
       return;
     }
 
-    // ── Daily expense lock check ────────────────────────────────
+    // ── Daily expense lock check (includes pending offline spending) ──
     if (lockEnabled && dailyBudget && dailyBudget > 0) {
       if (dailySpent >= dailyBudget) {
         setBlockMsg('DAILY LIMIT REACHED. EXPENSES ARE LOCKED.');
@@ -78,19 +111,36 @@ export default function AddExpense() {
     }
 
     setLoading(true);
-    const { error } = await supabase.from('expenses').insert({
-      user_id: session.user.id,
-      amount: numericAmount,
-      note: note.trim() || null,
-      category_id: selectedCategoryId,
-      is_recurring: isRecurring,
-      recurrence_interval: isRecurring ? 'monthly' : null,
-    });
 
-    if (error) {
-      setLoading(false);
-      showAlert('Error', error.message);
-      return;
+    if (isOnline) {
+      const { error } = await supabase.from('expenses').insert({
+        user_id: session.user.id,
+        amount: numericAmount,
+        note: note.trim() || null,
+        category_id: selectedCategoryId,
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? 'monthly' : null,
+      });
+
+      if (error) {
+        setLoading(false);
+        showAlert('Error', error.message);
+        return;
+      }
+    } else {
+      // Offline mode: save locally to pending queue
+      const localId = generateLocalId();
+      const today = getTodayDateString();
+      await addPendingTransaction(session.user.id, {
+        localId,
+        type: 'expense',
+        amount: numericAmount,
+        note: note.trim() || null,
+        category_id: selectedCategoryId,
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? 'monthly' : null,
+        date: today,
+      });
     }
 
     // ── Refresh today's spending after saving ───────────────────
@@ -102,7 +152,7 @@ export default function AddExpense() {
     let budgetSpent = 0;
     let budgetEffective = 0;
 
-    if (selectedCategoryId) {
+    if (selectedCategoryId && isOnline) {
       try {
         budgetSpent     = await getCategoryActualSpend(session.user.id, selectedCategoryId, firstOfMonth());
         budgetEffective = await getEffectiveBudget(session.user.id, selectedCategoryId, 0);
@@ -132,7 +182,11 @@ export default function AddExpense() {
     });
 
     setActiveReactionState(reaction);
-    setSuccessMsg(`-${numericAmount.toFixed(2)} DT recorded.`);
+    if (isOnline) {
+      setSuccessMsg(`-${numericAmount.toFixed(2)} DT recorded.`);
+    } else {
+      setSuccessMsg(`-${numericAmount.toFixed(2)} DT recorded.\n↻ Will sync when you're back online`);
+    }
     setLoading(false);
 
     // Reset form — stay on screen
@@ -144,7 +198,7 @@ export default function AddExpense() {
     setTimeout(() => {
       setSuccessMsg('');
       setActiveReactionState(null);
-    }, (reaction?.durationMs || 2000) + 500);
+    }, (reaction?.durationMs || 2500) + 500);
 
     // ── No automatic navigation. User presses BACK to leave. ──
   }
@@ -158,6 +212,9 @@ export default function AddExpense() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <GlobalCornerFigure assetId="riley_spend" size={60} opacity={0.25} position="top-right" />
+
+      {/* Network banner */}
+      <NetworkBanner status={status} />
 
       <Text style={styles.title}>ADD EXPENSE</Text>
 
@@ -270,7 +327,7 @@ export default function AddExpense() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, position: 'relative' },
-  container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
+  container: { padding: 24, paddingTop: 52, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
   title: { fontFamily: fonts.display, fontSize: 34, color: colors.textPrimary, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
   characterRow: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
 
@@ -290,7 +347,9 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemiBold,
     fontSize: 12,
     color: colors.textSecondary,
-    letterSpacing: 1,
+    letterSpacing: 0.8,
+    flexWrap: 'wrap',
+    textAlign: 'center',
   },
 
   blockBanner: {
@@ -303,7 +362,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: 'center',
   },
-  blockText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.danger, letterSpacing: 1 },
+  blockText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.danger, letterSpacing: 0.8, textAlign: 'center', flexWrap: 'wrap' },
 
   successBanner: {
     backgroundColor: '#0D1F0D',
@@ -315,7 +374,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     alignItems: 'center',
   },
-  successText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.income, letterSpacing: 1 },
+  successText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.income, letterSpacing: 0.8, textAlign: 'center', flexWrap: 'wrap', lineHeight: 18 },
 
   input: {
     fontFamily: fonts.body,
@@ -350,7 +409,7 @@ const styles = StyleSheet.create({
   recurringRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8, minHeight: 44 },
   checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 1.5, borderColor: colors.border, marginRight: 10 },
   checkboxChecked: { backgroundColor: colors.expense, borderColor: colors.danger },
-  recurringLabel: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
+  recurringLabel: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary, flexShrink: 1 },
   button: {
     borderRadius: radii.sm,
     paddingVertical: 14,
@@ -362,5 +421,5 @@ const styles = StyleSheet.create({
   primaryButton:  { backgroundColor: colors.cardElevated, borderColor: colors.expense },
   buttonDisabled: { opacity: 0.45, borderColor: colors.danger },
   ghostButton:    { backgroundColor: colors.card, borderColor: colors.border },
-  buttonText:     { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5 },
+  buttonText:     { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5, textAlign: 'center' },
 });

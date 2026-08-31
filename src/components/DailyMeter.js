@@ -117,6 +117,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 8,
+    flexWrap: 'wrap',
+    gap: 6,
   },
   cardTitle: {
     fontFamily: fonts.bodySemiBold,
@@ -124,12 +126,14 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     letterSpacing: 2,
     textTransform: 'uppercase',
+    flexShrink: 1,
   },
   lockBadge: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 11,
     color: colors.danger,
     letterSpacing: 1,
+    flexShrink: 1,
   },
 
   amounts: {
@@ -137,6 +141,7 @@ const styles = StyleSheet.create({
     fontSize: 22,
     color: colors.textPrimary,
     marginBottom: 10,
+    flexWrap: 'wrap',
   },
   amountsDanger: {
     color: colors.danger,
@@ -158,24 +163,32 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 12,
     color: colors.textSecondary,
+    flexWrap: 'wrap',
+    lineHeight: 18,
   },
   cautionText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 12,
     color: '#D4A237',
     letterSpacing: 0.5,
+    flexWrap: 'wrap',
+    lineHeight: 18,
   },
   criticalText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 12,
     color: '#E8793D',
     letterSpacing: 0.5,
+    flexWrap: 'wrap',
+    lineHeight: 18,
   },
   exceededText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 13,
     color: colors.danger,
     letterSpacing: 1,
+    flexWrap: 'wrap',
+    lineHeight: 18,
   },
 
   noBudgetText: {

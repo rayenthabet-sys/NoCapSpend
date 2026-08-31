@@ -6,13 +6,19 @@ import { useAuth } from '../lib/AuthContext';
 import { colors, fonts, radii, spacing } from '../lib/theme';
 import { resolveCharacterState } from '../lib/characterEngine';
 import { showAlert } from '../lib/dialog';
+import { useNetworkStatus } from '../lib/networkStatus';
+import { addPendingTransaction, generateLocalId } from '../lib/offlineStore';
+import { getTodayDateString } from '../lib/dailyBudget';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
+import NetworkBanner from '../components/NetworkBanner';
 
 export default function AddIncome() {
   const auth: any = useAuth();
   const session = auth?.session;
+  const { status, isOnline } = useNetworkStatus();
+
   const [amount, setAmount] = useState('');
   const [source, setSource] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
@@ -28,18 +34,36 @@ export default function AddIncome() {
     }
 
     setLoading(true);
-    const { error } = await supabase.from('income_entries').insert({
-      user_id: session.user.id,
-      amount: numericAmount,
-      source: source.trim() || null,
-      is_recurring: isRecurring,
-      recurrence_interval: isRecurring ? 'monthly' : null,
-    });
-    setLoading(false);
 
-    if (error) {
-      showAlert('Error', error.message);
-      return;
+    if (isOnline) {
+      const { error } = await supabase.from('income_entries').insert({
+        user_id: session.user.id,
+        amount: numericAmount,
+        source: source.trim() || null,
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? 'monthly' : null,
+      });
+
+      setLoading(false);
+
+      if (error) {
+        showAlert('Error', error.message);
+        return;
+      }
+    } else {
+      // Offline mode: save locally to pending queue
+      const localId = generateLocalId();
+      const today = getTodayDateString();
+      await addPendingTransaction(session.user.id, {
+        localId,
+        type: 'income',
+        amount: numericAmount,
+        source: source.trim() || null,
+        is_recurring: isRecurring,
+        recurrence_interval: isRecurring ? 'monthly' : null,
+        date: today,
+      });
+      setLoading(false);
     }
 
     // ── Success: show reaction, reset form, STAY on this screen ──
@@ -48,7 +72,12 @@ export default function AddIncome() {
       eventTrigger: 'incomeAdded',
     });
     setActiveReactionState(reaction);
-    setSuccessMsg(`+${numericAmount.toFixed(2)} DT recorded.`);
+
+    if (isOnline) {
+      setSuccessMsg(`+${numericAmount.toFixed(2)} DT recorded.`);
+    } else {
+      setSuccessMsg(`+${numericAmount.toFixed(2)} DT recorded.\n↻ Will sync when you're back online`);
+    }
 
     // Reset form so user can log another entry without navigating away
     setAmount('');
@@ -59,7 +88,7 @@ export default function AddIncome() {
     setTimeout(() => {
       setSuccessMsg('');
       setActiveReactionState(null);
-    }, (reaction?.durationMs || 2000) + 500);
+    }, (reaction?.durationMs || 2900) + 500);
 
     // ── No automatic navigation. User presses BACK to leave. ──
   }
@@ -70,6 +99,9 @@ export default function AddIncome() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
       <GlobalCornerFigure assetId="slickback_cash" size={60} opacity={0.25} position="top-right" />
+
+      {/* Network banner */}
+      <NetworkBanner status={status} />
 
       <Text style={styles.title}>ADD INCOME</Text>
 
@@ -137,7 +169,7 @@ export default function AddIncome() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background, position: 'relative' },
-  container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
+  container: { padding: 24, paddingTop: 52, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
   title: { fontFamily: fonts.display, fontSize: 34, color: colors.textPrimary, textAlign: 'center', letterSpacing: 2.5, marginBottom: 8 },
   characterRow: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
   successBanner: {
@@ -150,7 +182,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     alignItems: 'center',
   },
-  successText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.income, letterSpacing: 1 },
+  successText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.income, letterSpacing: 0.8, textAlign: 'center', flexWrap: 'wrap', lineHeight: 18 },
   input: {
     fontFamily: fonts.body,
     borderWidth: 1.5,
@@ -165,7 +197,7 @@ const styles = StyleSheet.create({
   recurringRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12, marginBottom: 8, minHeight: 44 },
   checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 1.5, borderColor: colors.border, marginRight: 10 },
   checkboxChecked: { backgroundColor: colors.income, borderColor: colors.primaryBright },
-  recurringLabel: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary },
+  recurringLabel: { fontFamily: fonts.body, fontSize: 14, color: colors.textSecondary, flexShrink: 1 },
   button: {
     borderRadius: radii.sm,
     paddingVertical: 14,
@@ -176,5 +208,5 @@ const styles = StyleSheet.create({
   },
   primaryButton: { backgroundColor: colors.cardElevated, borderColor: colors.income },
   ghostButton: { backgroundColor: colors.card, borderColor: colors.border },
-  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5 },
+  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5, textAlign: 'center' },
 });

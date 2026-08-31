@@ -14,8 +14,11 @@ import {
 import { colors, fonts, radii, spacing } from '../lib/theme';
 import { resolveCharacterState } from '../lib/characterEngine';
 import { showAlert } from '../lib/dialog';
+import { useNetworkStatus } from '../lib/networkStatus';
+import { cacheWrite, cacheRead, BUCKETS } from '../lib/offlineStore';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
+import NetworkBanner from '../components/NetworkBanner';
 
 const ROLLOVER_OPTIONS = [
   { value: 'reset', label: 'RESET' },
@@ -26,6 +29,7 @@ const ROLLOVER_OPTIONS = [
 export default function Budgets() {
   const auth: any = useAuth();
   const session = auth?.session;
+  const { status, isOnline } = useNetworkStatus();
   const [categories, setCategories] = useState<any[]>([]);
   const [budgetRows, setBudgetRows] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
@@ -35,58 +39,82 @@ export default function Budgets() {
     if (!session) return;
     setLoading(true);
     try {
-      const { data: cats } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('type', 'expense')
-        .order('name');
+      if (isOnline) {
+        const { data: cats } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .eq('type', 'expense')
+          .order('name');
 
-      const existingBudgets = await getBudgetsForCurrentMonth(session.user.id);
-      const budgetsByCategory: Record<string, any> = {};
-      existingBudgets.forEach((b: any) => {
-        budgetsByCategory[b.category_id] = b;
-      });
+        const existingBudgets = await getBudgetsForCurrentMonth(session.user.id);
+        const budgetsByCategory: Record<string, any> = {};
+        existingBudgets.forEach((b: any) => {
+          budgetsByCategory[b.category_id] = b;
+        });
 
-      const rows: Record<string, any> = {};
-      let highestRatio = 0;
-      let worstStatus: any = null;
+        const rows: Record<string, any> = {};
+        let highestRatio = 0;
+        let worstStatus: any = null;
 
-      for (const cat of cats || []) {
-        const existing = budgetsByCategory[cat.id];
-        const planned = existing ? Number(existing.planned_amount) : 0;
-        const mode = existing ? existing.rollover_mode : 'reset';
-        const spent = await getCategoryActualSpend(session.user.id, cat.id, firstOfMonth());
-        const effective = existing ? await getEffectiveBudget(session.user.id, cat.id, planned) : 0;
+        for (const cat of cats || []) {
+          const existing = budgetsByCategory[cat.id];
+          const planned = existing ? Number(existing.planned_amount) : 0;
+          const mode = existing ? existing.rollover_mode : 'reset';
+          const spent = await getCategoryActualSpend(session.user.id, cat.id, firstOfMonth());
+          const effective = existing ? await getEffectiveBudget(session.user.id, cat.id, planned) : 0;
 
-        const ratio = effective > 0 ? spent / effective : 0;
-        const isOverBudget = effective > 0 && spent > effective;
+          const ratio = effective > 0 ? spent / effective : 0;
+          const isOverBudget = effective > 0 && spent > effective;
 
-        if (ratio > highestRatio && existing) {
-          highestRatio = ratio;
-          worstStatus = { spent, effective, ratio, isOverBudget };
+          if (ratio > highestRatio && existing) {
+            highestRatio = ratio;
+            worstStatus = { spent, effective, ratio, isOverBudget };
+          }
+
+          rows[cat.id] = {
+            plannedInput: planned ? String(planned) : '',
+            mode,
+            spent,
+            effective,
+            ratio,
+            hasBudget: !!existing,
+            isOverBudget,
+          };
         }
 
-        rows[cat.id] = {
-          plannedInput: planned ? String(planned) : '',
-          mode,
-          spent,
-          effective,
-          ratio,
-          hasBudget: !!existing,
-          isOverBudget,
-        };
-      }
+        setCategories(cats || []);
+        setBudgetRows(rows);
+        setWorstBudgetStatus(worstStatus);
 
-      setCategories(cats || []);
-      setBudgetRows(rows);
-      setWorstBudgetStatus(worstStatus);
+        // Cache for offline use
+        await cacheWrite(session.user.id, BUCKETS.BUDGETS, {
+          categories: cats || [],
+          budgetRows: rows,
+          worstBudgetStatus: worstStatus,
+        });
+      } else {
+        // Offline: read from cache
+        const cached = await cacheRead(session.user.id, BUCKETS.BUDGETS);
+        if (cached) {
+          setCategories(cached.categories || []);
+          setBudgetRows(cached.budgetRows || {});
+          setWorstBudgetStatus(cached.worstBudgetStatus || null);
+        }
+      }
     } catch (err: any) {
-      showAlert('Error', err?.message || 'Something went wrong');
+      console.warn('Failed to load budgets:', err);
+      // Try cached data
+      const cached = await cacheRead(session.user.id, BUCKETS.BUDGETS);
+      if (cached) {
+        setCategories(cached.categories || []);
+        setBudgetRows(cached.budgetRows || {});
+        setWorstBudgetStatus(cached.worstBudgetStatus || null);
+      }
     } finally {
       setLoading(false);
     }
-  }, [session]);
+  }, [session, isOnline]);
 
   useFocusEffect(
     useCallback(() => {
@@ -115,6 +143,10 @@ export default function Budgets() {
   }
 
   async function saveBudget(categoryId: string) {
+    if (!isOnline) {
+      showAlert('Offline', 'Connecting to the internet is required to update monthly budget limits.');
+      return;
+    }
     const row = budgetRows[categoryId];
     const planned = parseFloat(row.plannedInput);
     if (!planned || planned <= 0) {
@@ -146,6 +178,9 @@ export default function Budgets() {
       keyExtractor={(item: any) => item.id}
       ListHeaderComponent={
         <>
+          {/* Network banner */}
+          <NetworkBanner status={status} />
+
           <Text style={styles.title}>BUDGET LIMITS</Text>
           <View style={styles.characterRow}>
             <BudgetCharacter
@@ -179,7 +214,7 @@ export default function Budgets() {
         return (
           <View style={[styles.card, overBudget && styles.cardDanger, critical && styles.cardDanger, warning && styles.cardWarning]}>
             <View style={styles.cardHeader}>
-              <Text style={styles.categoryName}>{cat.name}</Text>
+              <Text style={styles.categoryName} numberOfLines={1} adjustsFontSizeToFit>{cat.name}</Text>
               {overBudget ? (
                 <Text style={styles.dangerBadge}>OVER BUDGET</Text>
               ) : critical ? (
@@ -188,8 +223,6 @@ export default function Budgets() {
                 <Text style={styles.warningBadge}>80% CAUTION</Text>
               ) : null}
             </View>
-
-            
 
             {row.hasBudget && (
               <>
@@ -204,8 +237,8 @@ export default function Budgets() {
                   />
                 </View>
                 <View style={styles.budgetStats}>
-                  <Text style={styles.budgetStat}>Spent: {row.spent.toFixed(2)} DT</Text>
-                  <Text style={[styles.budgetStat, overBudget && styles.dangerText]}>
+                  <Text style={styles.budgetStat} numberOfLines={1} adjustsFontSizeToFit>Spent: {row.spent.toFixed(2)} DT</Text>
+                  <Text style={[styles.budgetStat, overBudget && styles.dangerText]} numberOfLines={1} adjustsFontSizeToFit>
                     {overBudget ? 'Over' : 'Left'}: {Math.abs(row.effective - row.spent).toFixed(2)} DT
                   </Text>
                 </View>
@@ -259,8 +292,8 @@ export default function Budgets() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  loadingContainer: { flex: 1, padding: 24, paddingTop: 60, backgroundColor: colors.background, maxWidth: 580, alignSelf: 'center', width: '100%' },
-  container: { padding: 24, paddingTop: 60, maxWidth: 580, alignSelf: 'center', width: '100%' },
+  loadingContainer: { flex: 1, padding: 24, paddingTop: 52, backgroundColor: colors.background, maxWidth: 580, alignSelf: 'center', width: '100%' },
+  container: { padding: 24, paddingTop: 52, maxWidth: 580, alignSelf: 'center', width: '100%' },
   title: { fontFamily: fonts.display, fontSize: 36, color: colors.textPrimary, textAlign: 'center', marginBottom: 8, letterSpacing: 3 },
   characterRow: { alignItems: 'center', marginBottom: spacing.md, minHeight: 200, justifyContent: 'center' },
   empty: { fontFamily: fonts.body, textAlign: 'center', color: colors.textSecondary, marginTop: 20 },
@@ -276,16 +309,16 @@ const styles = StyleSheet.create({
   },
   cardWarning: { borderColor: colors.warning, borderLeftWidth: 4, borderLeftColor: colors.warning },
   cardDanger:  { borderColor: colors.danger, borderLeftWidth: 4, borderLeftColor: colors.danger },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  categoryName: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.textPrimary },
-  warningBadge:  { fontFamily: fonts.display, fontSize: 14, color: colors.warning, letterSpacing: 1 },
-  criticalBadge: { fontFamily: fonts.display, fontSize: 14, color: colors.danger, letterSpacing: 1 },
-  dangerBadge:   { fontFamily: fonts.display, fontSize: 14, color: colors.danger, letterSpacing: 1 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, gap: 8 },
+  categoryName: { fontFamily: fonts.bodyBold, fontSize: 16, color: colors.textPrimary, flex: 1 },
+  warningBadge:  { fontFamily: fonts.display, fontSize: 14, color: colors.warning, letterSpacing: 1, flexShrink: 1 },
+  criticalBadge: { fontFamily: fonts.display, fontSize: 14, color: colors.danger, letterSpacing: 1, flexShrink: 1 },
+  dangerBadge:   { fontFamily: fonts.display, fontSize: 14, color: colors.danger, letterSpacing: 1, flexShrink: 1 },
   progressBarBg: { height: 6, backgroundColor: colors.progressBg, borderRadius: 3, overflow: 'hidden', marginBottom: 8 },
   progressBarFill: { height: 6, backgroundColor: colors.income, borderRadius: 3 },
   progressDanger: { backgroundColor: colors.danger },
-  budgetStats: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 },
-  budgetStat: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary },
+  budgetStats: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10, gap: 8 },
+  budgetStat: { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, flexShrink: 1 },
   dangerText: { color: colors.danger, fontFamily: fonts.bodyBold },
   input: {
     fontFamily: fonts.body,
@@ -322,6 +355,6 @@ const styles = StyleSheet.create({
     minHeight: 48,
     justifyContent: 'center',
   },
-  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textPrimary, letterSpacing: 1 },
+  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textPrimary, letterSpacing: 1, textAlign: 'center' },
   ghostButton: { backgroundColor: colors.card, borderColor: colors.border },
 });

@@ -6,25 +6,39 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { colors, fonts, radii } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
+import { useNetworkStatus } from '../lib/networkStatus';
+import { cacheWrite, cacheRead, BUCKETS } from '../lib/offlineStore';
 import BudgetCharacter from '../components/BudgetCharacter';
+import NetworkBanner from '../components/NetworkBanner';
 
 export default function Categories() {
   const auth: any = useAuth();
   const session = auth?.session;
+  const { status, isOnline } = useNetworkStatus();
   const [categories, setCategories] = useState<any[]>([]);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
 
   const loadCategories = useCallback(async () => {
     if (!session) return;
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('type', 'expense')
-      .order('name');
-    if (!error && data) setCategories(data);
-  }, [session]);
+    if (isOnline) {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('type', 'expense')
+        .order('name');
+      if (!error && data) {
+        setCategories(data);
+        await cacheWrite(session.user.id, BUCKETS.CATEGORIES, data);
+      }
+    } else {
+      const cached = await cacheRead(session.user.id, BUCKETS.CATEGORIES);
+      if (Array.isArray(cached)) {
+        setCategories(cached);
+      }
+    }
+  }, [session, isOnline]);
 
   useFocusEffect(
     useCallback(() => {
@@ -33,6 +47,10 @@ export default function Categories() {
   );
 
   async function addCategory() {
+    if (!isOnline) {
+      showAlert('Offline', 'An internet connection is required to create new categories.');
+      return;
+    }
     if (!name.trim()) {
       showAlert('Missing name', 'Enter a category name.');
       return;
@@ -53,6 +71,10 @@ export default function Categories() {
   }
 
   function confirmDelete(category: any) {
+    if (!isOnline) {
+      showAlert('Offline', 'An internet connection is required to delete categories.');
+      return;
+    }
     showAlert('Delete Category', `Delete "${category.name}"? Expenses already using it will keep their history, just show no category.`, [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -68,6 +90,9 @@ export default function Categories() {
 
   return (
     <View style={styles.container}>
+      {/* Network banner */}
+      <NetworkBanner status={status} />
+
       <Text style={styles.title}>CATEGORIES</Text>
 
       <FlatList
@@ -75,7 +100,7 @@ export default function Categories() {
         keyExtractor={(item: any) => item.id}
         renderItem={({ item }: any) => (
           <TouchableOpacity style={styles.categoryRow} onPress={() => confirmDelete(item)}>
-            <Text style={styles.categoryName}>{item.name}</Text>
+            <Text style={styles.categoryName} numberOfLines={1} adjustsFontSizeToFit>{item.name}</Text>
             <Text style={styles.deleteHint}>tap to delete</Text>
           </TouchableOpacity>
         )}
@@ -113,8 +138,8 @@ export default function Categories() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, paddingTop: 60, paddingBottom: 40, backgroundColor: colors.background, maxWidth: 580, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 32, color: colors.textPrimary, textAlign: 'center', marginBottom: 20, letterSpacing: 2.5 },
+  container: { flex: 1, padding: 24, paddingTop: 52, paddingBottom: 40, backgroundColor: colors.background, maxWidth: 580, alignSelf: 'center', width: '100%' },
+  title: { fontFamily: fonts.display, fontSize: 32, color: colors.textPrimary, textAlign: 'center', marginBottom: 16, letterSpacing: 2.5 },
   categoryRow: {
     backgroundColor: colors.card,
     borderRadius: radii.sm,
@@ -125,11 +150,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1.5,
     borderColor: colors.border,
+    gap: 8,
   },
-  categoryName: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.textPrimary },
-  deleteHint: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted },
+  categoryName: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.textPrimary, flex: 1 },
+  deleteHint: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, flexShrink: 1 },
   emptyState: { alignItems: 'center', marginTop: 30 },
-  emptyTitle: { fontFamily: fonts.display, fontSize: 22, color: colors.textPrimary, marginTop: 12, letterSpacing: 2 },
+  emptyTitle: { fontFamily: fonts.display, fontSize: 22, color: colors.textPrimary, marginTop: 12, letterSpacing: 2, textAlign: 'center' },
   emptyText: { fontFamily: fonts.body, color: colors.textSecondary, marginTop: 6, textAlign: 'center' },
   input: {
     fontFamily: fonts.body,
@@ -153,5 +179,5 @@ const styles = StyleSheet.create({
   },
   primaryButton: { backgroundColor: colors.cardElevated, borderColor: colors.primary },
   ghostButton: { backgroundColor: colors.card, borderColor: colors.border },
-  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5 },
+  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5, textAlign: 'center' },
 });
