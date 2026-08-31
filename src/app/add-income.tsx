@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { View, TextInput, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { colors, fonts, radii, spacing } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
@@ -21,7 +22,7 @@ export default function AddIncome() {
   async function saveIncome() {
     const numericAmount = parseFloat(amount);
     if (!numericAmount || numericAmount <= 0) {
-      Alert.alert('Invalid amount', 'Enter a number greater than 0.');
+      showAlert('Invalid amount', 'Enter a number greater than 0.');
       return;
     }
 
@@ -36,7 +37,7 @@ export default function AddIncome() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
     } else {
       setActiveReaction('incomeAdded');
       setReactionText('+$' + numericAmount.toFixed(2) + ' / BAG SECURED');

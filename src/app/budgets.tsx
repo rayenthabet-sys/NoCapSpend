@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
@@ -11,6 +11,7 @@ import {
   firstOfMonth,
 } from '../lib/budgets';
 import { colors, fonts, radii, spacing } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 
@@ -92,7 +93,7 @@ export default function Budgets() {
         reactionFired.current = true;
       }
     } catch (err) {
-      Alert.alert('Error', err.message);
+      showAlert('Error', err.message);
     } finally {
       setLoading(false);
     }
@@ -122,14 +123,14 @@ export default function Budgets() {
     const row = budgetRows[categoryId];
     const planned = parseFloat(row.plannedInput);
     if (!planned || planned <= 0) {
-      Alert.alert('Invalid amount', 'Enter a budget greater than 0.');
+      showAlert('Invalid amount', 'Enter a budget greater than 0.');
       return;
     }
     try {
       await upsertBudget(session.user.id, categoryId, planned, row.mode);
       loadAll();
     } catch (err) {
-      Alert.alert('Error', err.message);
+      showAlert('Error', err.message);
     }
   }
 

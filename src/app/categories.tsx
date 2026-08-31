@@ -1,9 +1,10 @@
 import { useState, useCallback } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, Alert, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { colors, fonts, radii, spacing } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 import BudgetCharacter from '../components/BudgetCharacter';
 
 export default function Categories() {
@@ -31,7 +32,7 @@ export default function Categories() {
 
   async function addCategory() {
     if (!name.trim()) {
-      Alert.alert('Missing name', 'Enter a sector name.');
+      showAlert('Missing name', 'Enter a sector name.');
       return;
     }
     setSaving(true);
@@ -42,7 +43,7 @@ export default function Categories() {
     });
     setSaving(false);
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
     } else {
       setName('');
       loadCategories();
@@ -50,7 +51,7 @@ export default function Categories() {
   }
 
   function confirmDelete(category) {
-    Alert.alert('Delete Sector', `Delete "${category.name}"? Expenses already using it will keep their history, just show no sector.`, [
+    showAlert('Delete Sector', `Delete "${category.name}"? Expenses already using it will keep their history, just show no sector.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',

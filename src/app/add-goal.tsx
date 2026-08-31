@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { router } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { colors, fonts, radii, spacing } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 
 export default function AddGoal() {
   const { session } = useAuth();
@@ -15,11 +16,11 @@ export default function AddGoal() {
   async function saveGoal() {
     const numericTarget = parseFloat(targetAmount);
     if (!name.trim()) {
-      Alert.alert('Missing name', 'Give your goal a name.');
+      showAlert('Missing name', 'Give your goal a name.');
       return;
     }
     if (!numericTarget || numericTarget <= 0) {
-      Alert.alert('Invalid target', 'Enter a target amount greater than 0.');
+      showAlert('Invalid target', 'Enter a target amount greater than 0.');
       return;
     }
 
@@ -33,7 +34,7 @@ export default function AddGoal() {
     setLoading(false);
 
     if (error) {
-      Alert.alert('Error', error.message);
+      showAlert('Error', error.message);
     } else {
       router.back();
     }

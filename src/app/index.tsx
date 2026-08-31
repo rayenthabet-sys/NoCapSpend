@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { Redirect, Link, useFocusEffect } from 'expo-router';
 import {
   View, ActivityIndicator, Text, StyleSheet, ScrollView,
-  Dimensions, Alert, TouchableOpacity, Animated,
+  Dimensions, TouchableOpacity, Animated,
 } from 'react-native';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useAuth } from '../lib/AuthContext';
@@ -12,6 +12,7 @@ import { ensureRecurringEntriesForThisMonth } from '../lib/recurring';
 import { colors, fonts, radii, spacing, chartConfig } from '../lib/theme';
 import { resolvePersistentCharacter, getLastExpenseTimestamp } from '../lib/characters';
 import { getRacksOnly } from '../lib/slang';
+import { showAlert } from '../lib/dialog';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import BudgetCard from '../components/BudgetCard';
@@ -127,7 +128,7 @@ export default function Home() {
       }
     } catch (err) {
       console.error('Failed to load dashboard data:', err);
-      Alert.alert('Error loading data', err.message || 'Something went wrong.');
+      showAlert('Error loading data', err.message || 'Something went wrong.');
     } finally {
       setFetching(false);
     }

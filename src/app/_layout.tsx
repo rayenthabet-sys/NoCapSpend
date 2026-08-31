@@ -1,12 +1,7 @@
 import { Stack } from 'expo-router';
 import { LogBox, View, ActivityIndicator } from 'react-native';
 import { AuthProvider } from '../lib/AuthContext';
-// Old cute-theme fonts — kept loaded to avoid breaking any remaining references
-import { useFonts, PatrickHand_400Regular } from '@expo-google-fonts/patrick-hand';
-import { Baloo2_400Regular, Baloo2_600SemiBold, Baloo2_700Bold } from '@expo-google-fonts/baloo-2';
-import { PirataOne_400Regular } from '@expo-google-fonts/pirata-one';
-// New dark-theme fonts
-import { SpaceGrotesk_400Regular, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
+import { useFonts, SpaceGrotesk_400Regular, SpaceGrotesk_600SemiBold, SpaceGrotesk_700Bold } from '@expo-google-fonts/space-grotesk';
 import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue';
 
 LogBox.ignoreLogs([
@@ -46,13 +41,6 @@ if (typeof window !== 'undefined') {
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    // Legacy (kept for safety — screens will migrate off these)
-    PatrickHand_400Regular,
-    Baloo2_400Regular,
-    Baloo2_600SemiBold,
-    Baloo2_700Bold,
-    PirataOne_400Regular,
-    // Active dark theme fonts
     SpaceGrotesk_400Regular,
     SpaceGrotesk_600SemiBold,
     SpaceGrotesk_700Bold,

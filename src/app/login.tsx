@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, TextInput, Text, StyleSheet, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import { View, TextInput, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
 import { Redirect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
 import { colors, fonts, radii, spacing, labels } from '../lib/theme';
+import { showAlert } from '../lib/dialog';
 import BudgetCharacter from '../components/BudgetCharacter';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
 
@@ -19,25 +20,25 @@ export default function Login() {
 
   async function signIn() {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing fields', 'Enter your email and password.');
+      showAlert('Missing fields', 'Enter your email and password.');
       return;
     }
     setLoading(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
     setLoading(false);
-    if (error) Alert.alert('Error', error.message);
+    if (error) showAlert('Error', error.message);
   }
 
   async function signUp() {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Missing fields', 'Enter your email and password.');
+      showAlert('Missing fields', 'Enter your email and password.');
       return;
     }
     setLoading(true);
     const { error } = await supabase.auth.signUp({ email: email.trim(), password: password.trim() });
     setLoading(false);
-    if (error) Alert.alert('Error', error.message);
-    else Alert.alert('Success', 'Account created — you can log in now.');
+    if (error) showAlert('Error', error.message);
+    else showAlert('Success', 'Account created — you can log in now.');
   }
 
   return (
