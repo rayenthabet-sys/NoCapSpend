@@ -1,0 +1,273 @@
+{
+  "robert_neutral": {
+    "canonical_asset_id": "robert_neutral",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/robert_neutral.png",
+    "parameters": {
+      "entrance": {
+        "type": "fade_or_noop",
+        "max_ms": 200
+      },
+      "idle": {
+        "loop": true,
+        "duration_ms": 1600,
+        "translation_y_px": 1,
+        "scale_pct": 0
+      },
+      "exit": {
+        "type": "fade_on_owner_change"
+      }
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "robert_guidance": {
+    "canonical_asset_id": "robert_guidance",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/robert_guidance.png",
+    "parameters": {
+      "entrance": {
+        "type": "crossfade",
+        "ms": 200
+      },
+      "reaction": {
+        "type": "tiny_nod_or_hand_gesture",
+        "ms": 600,
+        "translation_y_px": 1,
+        "rotation_deg": 0
+      },
+      "exit": {
+        "type": "fade_or_crossfade"
+      }
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "robert_reassure": {
+    "canonical_asset_id": "robert_reassure",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/robert_reassure.png",
+    "parameters": {
+      "entrance": {
+        "type": "fade_in",
+        "ms": 200
+      },
+      "reaction": {
+        "type": "single_restrained_nod",
+        "ms_range": [
+          700,
+          1500
+        ],
+        "translation_y_px": -1
+      },
+      "exit": {
+        "type": "fade",
+        "ms": 220
+      },
+      "cooldown_s": 5
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "tom_caution": {
+    "canonical_asset_id": "tom_caution",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/tom_caution.png",
+    "parameters": {
+      "entrance": {
+        "type": "slide_in_attention_lift",
+        "ms": "PROPOSED"
+      },
+      "reaction": {
+        "type": "measured_shift_hold",
+        "loop_ms": 1600,
+        "translation_y_px_amplitude": 2
+      },
+      "exit": {
+        "type": "fade_slide_out"
+      },
+      "cooldown_s": 10
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "tom_alarm": {
+    "canonical_asset_id": "tom_alarm",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/tom_alarm.png",
+    "parameters": {
+      "entrance": {
+        "type": "slide_in_stronger_attention_lift",
+        "ms": "PROPOSED"
+      },
+      "reaction": {
+        "type": "controlled_warning_gesture",
+        "ms": 800,
+        "translation_y_px": 2,
+        "rotation_deg_amplitude": 0.4
+      },
+      "exit": {
+        "type": "fade_slide_out"
+      },
+      "cooldown_s": 10
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "riley_light": {
+    "canonical_asset_id": "riley_light",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/riley_light.png",
+    "parameters": {
+      "entrance": {
+        "type": "pop_lateral_slide",
+        "ms_range": [
+          180,
+          250
+        ],
+        "translation_x_px": 18,
+        "scale_from": 0.97
+      },
+      "reaction": {
+        "type": "point_bounce",
+        "ms": 500,
+        "translation_y_px_amplitude": -4,
+        "scale_pct_amplitude": 1
+      },
+      "exit": {
+        "type": "fade",
+        "ms": 200
+      },
+      "cooldown_s": 7
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "riley_spend": {
+    "canonical_asset_id": "riley_spend",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/riley_spend.png",
+    "parameters": {
+      "entrance": {
+        "type": "lateral_pop",
+        "ms": 200,
+        "translation_x_px": 20,
+        "scale_from": 0.98
+      },
+      "reaction": {
+        "type": "small_bounce_point",
+        "ms": 500,
+        "translation_y_px_amplitude": -4,
+        "rotation_deg_amplitude": 0.5
+      },
+      "exit": {
+        "type": "fade",
+        "ms": 200
+      },
+      "cooldown_s": 7
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "huey_neutral": {
+    "canonical_asset_id": "huey_neutral",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/huey_neutral.png",
+    "parameters": {
+      "entrance": {
+        "type": "minimal_slide",
+        "ms": 200,
+        "translation_x_px": 10
+      },
+      "idle": {
+        "loop": true,
+        "duration_ms": 1800,
+        "translation_y_px": 1
+      },
+      "exit": {
+        "type": "simple_fade_screen_transition"
+      }
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "huey_analyze": {
+    "canonical_asset_id": "huey_analyze",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/huey_analyze.png",
+    "parameters": {
+      "entrance": {
+        "type": "crossfade",
+        "ms": 200
+      },
+      "reaction": {
+        "type": "point_to_chart",
+        "ms": 600,
+        "translation_x_px": 2
+      },
+      "exit": {
+        "type": "crossfade"
+      }
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "huey_review": {
+    "canonical_asset_id": "huey_review",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/huey_review.png",
+    "parameters": {
+      "entrance": {
+        "type": "crossfade",
+        "ms": 200
+      },
+      "reaction": {
+        "type": "writing_emphasis",
+        "ms": 700,
+        "translation_y_px": 1
+      },
+      "exit": {
+        "type": "crossfade"
+      }
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "ed_wealth": {
+    "canonical_asset_id": "ed_wealth",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/ed_wealth.png",
+    "parameters": {
+      "entrance": {
+        "type": "controlled_reveal",
+        "ms": 350,
+        "translation_y_px": 6,
+        "scale_from": 0.985
+      },
+      "reaction": {
+        "type": "status_settle",
+        "ms": 600
+      },
+      "idle": {
+        "loop": true,
+        "duration_ms": 1800,
+        "scale_pct_amplitude": 0.3
+      },
+      "exit": {
+        "type": "quiet_fade_when_wealth_ends"
+      }
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  },
+  "ed_surplus": {
+    "canonical_asset_id": "ed_surplus",
+    "classification": "NATIVE UI ANIMATION \u2014 NO SEPARATE ANIMATION FILE REQUIRED",
+    "canonical_png": "assets/canonical/ed_surplus.png",
+    "parameters": {
+      "entrance": {
+        "type": "crossfade_from_ed_wealth",
+        "ms": 250
+      },
+      "reaction": {
+        "type": "restrained_status_gesture",
+        "ms": 650,
+        "translation_x_px": 2,
+        "rotation_deg_amplitude": 0.3
+      },
+      "exit": {
+        "type": "quiet_fade_when_wealth_ends"
+      }
+    },
+    "note": "Native UI animation; no separate animated artwork required. Apply to the supplied canonical PNG as a whole. Values marked PROPOSED in the Character Animation Spec are implementation starting points."
+  }
+}

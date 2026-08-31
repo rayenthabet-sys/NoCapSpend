@@ -1,170 +1,205 @@
-import React, { useEffect, useRef, memo } from 'react';
-import { Animated, View, StyleSheet } from 'react-native';
+import React, { useEffect, useRef, useState, memo } from 'react';
+import { Animated, StyleSheet, AccessibilityInfo, Platform, Image as RNImageStatic } from 'react-native';
 import { Image } from 'expo-image';
 import {
-  characterAssets,
-  characterAspectRatio,
-  reactionCharacterMap,
+  canonicalAssets,
+  animationWebPAssets,
+  CHARACTER_ASPECT_RATIO,
   characterSizes,
-  globalViews,
 } from '../lib/characters';
 import { animation } from '../lib/theme';
+
+// On web, useNativeDriver: true hands off to the CSS animation driver which
+// can fail silently inside Animated.loop — the loop callback fires in JS but
+// the actual CSS animation does not reliably restart between iterations.
+// useNativeDriver: false keeps the entire loop in the JS/requestAnimationFrame
+// tick so every frame correctly updates the DOM transform style.
+const USE_NATIVE_DRIVER = Platform.OS !== 'web';
+
+// Bob amplitude — ±10px, clearly perceptible while remaining polished.
+const BOB_AMPLITUDE = 10;
+
+/**
+ * Resolve a Metro require() asset to a URI string on web.
+ * `require()` for images always returns a number (registered asset ID).
+ * Image.resolveAssetSource() converts that to the actual served URL.
+ * Returns null if resolution fails so we can fall back gracefully.
+ */
+function resolveWebPSrc(source) {
+  if (!source) return null;
+  if (typeof source === 'string') return source;
+  if (typeof source === 'object' && source !== null && source.uri) return source.uri;
+  if (typeof source === 'number') {
+    try {
+      const resolved = RNImageStatic.resolveAssetSource(source);
+      return resolved?.uri || null;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 /**
  * BudgetCharacter
  *
- * Performant character component powered by expo-image (Glide/Metal hardware acceleration).
- * Subtle native-driven idle bob animation that safely stops on unmount.
- *
- * Props:
- *   character   string   "master" | "selfTitled" | "dieLit" | "wlr" | "global" | "bunny"
- *   reaction    string   see reactionCharacterMap in characters.js
- *   size        string   "nano" | "micro" | "small" | "medium" | "large" | "hero"  (default: "medium")
- *   animated    bool     enable idle bob animation (default: true)
- *   shake       bool     trigger a shake animation (default: false)
- *   pulse       bool     trigger a scale-up pulse (default: false)
- *   globalView  string   for global character: "front"|"frontAlt"|"side"|"back" (default: "front")
- *   style       object   additional container style overrides
- *   accessibilityLabel  string
+ * @param {Object} [props]
+ * @param {string} [props.assetId]
+ * @param {'webp' | 'native'} [props.animationType]
+ * @param {'micro' | 'small' | 'medium' | 'large' | 'hero'} [props.size]
+ * @param {boolean} [props.animated]
+ * @param {boolean} [props.shake]
+ * @param {boolean} [props.pulse]
+ * @param {boolean} [props.isOverBudget]
+ * @param {object} [props.style]
+ * @param {string} [props.accessibilityLabel]
  */
 function BudgetCharacterComponent({
-  character,
-  reaction,
+  assetId = 'robert_neutral',
+  animationType = 'native',
   size = 'medium',
   animated: enableAnimation = true,
   shake = false,
   pulse = false,
-  globalView = 'front',
-  style,
-  accessibilityLabel,
-}) {
-  // Resolve character key: reaction takes precedence over explicit character prop
-  const resolvedKey = reaction
-    ? (reactionCharacterMap[reaction] || 'master')
-    : (character || 'master');
+  isOverBudget = false,
+  style = undefined,
+  accessibilityLabel = undefined,
+} = {}) {
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [ruckusPhase, setRuckusPhase] = useState('entrance');
 
-  const asset = characterAssets[resolvedKey];
-
-  // Pixel height for this size preset
   const heightPx = characterSizes[size] || characterSizes.medium;
-  // Width auto-calculated from stored aspect ratio
-  const aspectRatio = characterAspectRatio[resolvedKey] || 0.667;
+  const widthPx = Math.round(heightPx * CHARACTER_ASPECT_RATIO);
 
-  // For the global sheet (4-view landscape)
-  const isGlobal = resolvedKey === 'global';
-  const globalViewIndex = globalViews[globalView] ?? 0;
-
-  // ── Animations ───────────────────────────────────────────────────
-  const bobY    = useRef(new Animated.Value(0)).current;
-  const shakeX  = useRef(new Animated.Value(0)).current;
-  const scaleV  = useRef(new Animated.Value(1)).current;
-
-  // Idle bob — subtle ±3px float with 2200ms cycle
   useEffect(() => {
-    if (!enableAnimation) {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    const listener = AccessibilityInfo.addEventListener?.(
+      'reduceMotionChanged',
+      setReduceMotion
+    );
+    return () => listener?.remove?.();
+  }, []);
+
+  // ── Ruckus state machine (W-01 guard preserved) ─────────────────
+  useEffect(() => {
+    if (assetId?.startsWith('ruckus')) {
+      if (isOverBudget && ruckusPhase !== 'hold') {
+        setRuckusPhase('entrance');
+        const timer = setTimeout(() => {
+          setRuckusPhase('hold');
+        }, 5000);
+        return () => clearTimeout(timer);
+      } else if (!isOverBudget && ruckusPhase === 'hold') {
+        setRuckusPhase('exit');
+        const timer = setTimeout(() => {
+          setRuckusPhase('entrance');
+        }, 800);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [assetId, isOverBudget, ruckusPhase]);
+
+  const bobY   = useRef(new Animated.Value(0)).current;
+  const shakeX = useRef(new Animated.Value(0)).current;
+  const scaleV = useRef(new Animated.Value(1)).current;
+
+  // ── Idle bob animation ────────────────────────────────────────────
+  useEffect(() => {
+    if (!enableAnimation || reduceMotion || animationType === 'webp') {
       bobY.setValue(0);
       return;
     }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(bobY, {
-          toValue: -3,
-          duration: 1100,
-          useNativeDriver: true,
+          toValue: -BOB_AMPLITUDE,
+          duration: animation.bob / 2,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
         Animated.timing(bobY, {
-          toValue: 3,
-          duration: 1100,
-          useNativeDriver: true,
+          toValue: BOB_AMPLITUDE,
+          duration: animation.bob / 2,
+          useNativeDriver: USE_NATIVE_DRIVER,
         }),
       ])
     );
     loop.start();
     return () => loop.stop();
-  }, [enableAnimation, bobY]);
+  }, [enableAnimation, reduceMotion, animationType, bobY]);
 
-  // Shake — triggered when `shake` prop changes
+  // ── Shake animation ───────────────────────────────────────────────
   useEffect(() => {
-    if (!shake) return;
+    if (!shake || reduceMotion) return;
     Animated.sequence([
-      Animated.timing(shakeX, { toValue: 6,  duration: 45, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: -6, duration: 45, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 4,  duration: 45, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: -4, duration: 45, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 2,  duration: 45, useNativeDriver: true }),
-      Animated.timing(shakeX, { toValue: 0,  duration: 45, useNativeDriver: true }),
+      Animated.timing(shakeX, { toValue: 8,  duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
+      Animated.timing(shakeX, { toValue: -8, duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
+      Animated.timing(shakeX, { toValue: 5,  duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
+      Animated.timing(shakeX, { toValue: -5, duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
+      Animated.timing(shakeX, { toValue: 2,  duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
+      Animated.timing(shakeX, { toValue: 0,  duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
     ]).start();
-  }, [shake, shakeX]);
+  }, [shake, reduceMotion, shakeX]);
 
-  // Pulse — triggered when `pulse` prop changes
+  // ── Pulse animation ───────────────────────────────────────────────
   useEffect(() => {
-    if (!pulse) return;
+    if (!pulse || reduceMotion) return;
     Animated.sequence([
       Animated.timing(scaleV, {
-        toValue: 1.06,
+        toValue: 1.08,
         duration: animation.fast,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
       Animated.timing(scaleV, {
         toValue: 1,
         duration: animation.normal,
-        useNativeDriver: true,
+        useNativeDriver: USE_NATIVE_DRIVER,
       }),
     ]).start();
-  }, [pulse, scaleV]);
+  }, [pulse, reduceMotion, scaleV]);
 
-  // ── Rendering ─────────────────────────────────────────────────────
-  if (!asset) {
-    return null;
+  // ── Asset resolution ─────────────────────────────────────────────
+  let source = canonicalAssets[assetId] || canonicalAssets.robert_neutral;
+  let useWebP = false;
+
+  if (animationType === 'webp' && !reduceMotion) {
+    useWebP = true;
+    if (assetId === 'ruckus_alarm') {
+      source = ruckusPhase === 'hold'
+        ? animationWebPAssets.ruckus_alarm_critical_hold
+        : ruckusPhase === 'exit'
+        ? animationWebPAssets.ruckus_alarm_exit
+        : animationWebPAssets.ruckus_alarm;
+    } else if (assetId === 'ruckus_emergency') {
+      source = ruckusPhase === 'hold'
+        ? animationWebPAssets.ruckus_emergency_critical_hold
+        : ruckusPhase === 'exit'
+        ? animationWebPAssets.ruckus_emergency_exit
+        : animationWebPAssets.ruckus_emergency;
+    } else if (animationWebPAssets[assetId]) {
+      source = animationWebPAssets[assetId];
+    } else {
+      useWebP = false;
+      source = canonicalAssets[assetId] || canonicalAssets.robert_neutral;
+    }
   }
 
-  if (isGlobal) {
-    const sheetHeight = heightPx;
-    const sheetWidth = sheetHeight * (768 / 512);
-    const viewWidth = sheetWidth / 4;
-    const offsetX = -(globalViewIndex * viewWidth);
-
-    return (
-      <Animated.View
-        style={[
-          styles.globalContainer,
-          {
-            width: viewWidth,
-            height: sheetHeight,
-            transform: [
-              { translateY: bobY },
-              { translateX: shakeX },
-              { scale: scaleV },
-            ],
-          },
-          style,
-        ]}
-        accessible
-        accessibilityLabel={accessibilityLabel || `character: global ${globalView}`}
-      >
-        <Image
-          source={asset}
-          style={{
-            width:  sheetWidth,
-            height: sheetHeight,
-            position: 'absolute',
-            left: offsetX,
-          }}
-          contentFit="contain"
-          cachePolicy="memory-disk"
-        />
-      </Animated.View>
-    );
-  }
-
-  // Standard portrait character
-  const characterWidth = Math.round(heightPx * aspectRatio);
+  // ── Web-only: resolve animated WebP to a real URL for <img> ──────
+  // On web, animated WebP in a plain <img> element autoplay natively in
+  // all modern browsers (Chrome, Firefox, Edge, Safari 16+).
+  // expo-image on web decodes frames via the browser's Image API and may
+  // only display the first frame; a plain <img> avoids that issue.
+  // Image.resolveAssetSource() converts the Metro numeric asset ID to the
+  // actual URL served by the Metro bundler.
+  const webpSrc = (useWebP && Platform.OS === 'web')
+    ? resolveWebPSrc(source)
+    : null;
 
   return (
     <Animated.View
       style={[
+        styles.panelWrapper,
         {
-          width:  characterWidth,
+          width: widthPx,
           height: heightPx,
           transform: [
             { translateY: bobY },
@@ -175,15 +210,27 @@ function BudgetCharacterComponent({
         style,
       ]}
       accessible
-      accessibilityLabel={accessibilityLabel || `character: ${resolvedKey}`}
+      accessibilityRole="image"
+      accessibilityLabel={accessibilityLabel || `Character ${assetId}`}
     >
-      <Image
-        source={asset}
-        style={{ width: characterWidth, height: heightPx }}
-        contentFit="contain"
-        cachePolicy="memory-disk"
-        priority="high"
-      />
+      {useWebP && Platform.OS === 'web' && webpSrc ? (
+        <img
+          src={webpSrc}
+          width={widthPx}
+          height={heightPx}
+          alt={accessibilityLabel || `Character ${assetId}`}
+          style={{ width: widthPx, height: heightPx, objectFit: 'contain', display: 'block' }}
+        />
+      ) : (
+        <Image
+          source={source}
+          style={{ width: widthPx, height: heightPx }}
+          contentFit="contain"
+          cachePolicy="memory-disk"
+          priority="high"
+          autoplay={!reduceMotion}
+        />
+      )}
     </Animated.View>
   );
 }
@@ -191,8 +238,9 @@ function BudgetCharacterComponent({
 export default memo(BudgetCharacterComponent);
 
 const styles = StyleSheet.create({
-  globalContainer: {
-    overflow: 'hidden',
-    position: 'relative',
+  panelWrapper: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'visible',
   },
 });

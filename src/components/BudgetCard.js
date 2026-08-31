@@ -5,21 +5,26 @@ import { colors, radii, spacing } from '../lib/theme';
 /**
  * BudgetCard
  *
- * Dark card container. Optional `accent` prop adds a thin red left border.
- * Optional `danger` prop colors the border red brighter for over-budget states.
- *
- * Props:
- *   accent    bool     show subtle red left border accent
- *   danger    bool     show bright red border (over-budget)
- *   style     object   additional style overrides
- *   children  node
+ * @param {Object} props
+ * @param {boolean} [props.accent]
+ * @param {boolean} [props.warning]
+ * @param {boolean} [props.danger]
+ * @param {object} [props.style]
+ * @param {React.ReactNode} [props.children]
  */
-export default function BudgetCard({ accent, danger, style, children }) {
+export default function BudgetCard({
+  accent = false,
+  warning = false,
+  danger = false,
+  style = undefined,
+  children = null,
+} = {}) {
   return (
     <View
       style={[
         styles.card,
         accent && styles.cardAccent,
+        warning && styles.cardWarning,
         danger && styles.cardDanger,
         style,
       ]}
@@ -33,18 +38,23 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: colors.card,
     borderRadius:    radii.sm,
-    borderWidth:     1,
+    borderWidth:     1.5,
     borderColor:     colors.border,
     padding:         spacing.md,
     marginBottom:    spacing.md,
   },
   cardAccent: {
-    borderLeftWidth:  3,
-    borderLeftColor:  colors.primaryDark,
+    borderLeftWidth: 3.5,
+    borderLeftColor: colors.primary,
+  },
+  cardWarning: {
+    borderLeftWidth: 3.5,
+    borderLeftColor: colors.warning,
+    borderColor:     colors.borderAccent,
   },
   cardDanger: {
-    borderLeftWidth:  3,
-    borderLeftColor:  colors.primaryBright,
-    borderColor:      colors.borderAccent,
+    borderLeftWidth: 3.5,
+    borderLeftColor: colors.danger,
+    borderColor:     colors.danger,
   },
 });

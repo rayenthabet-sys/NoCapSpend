@@ -43,3 +43,9 @@ example
 # generated native folders
 /ios
 /android
+
+# Internal docs & scratch
+*.docx
+BUDGET_BUDDY_*.docx
+BUDGET_BUDDY_*.md
+BUDGET BUDDY*.md

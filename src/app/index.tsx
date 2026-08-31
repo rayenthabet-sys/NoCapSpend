@@ -2,30 +2,22 @@ import { useState, useCallback, useRef, useMemo } from 'react';
 import { Redirect, Link, useFocusEffect } from 'expo-router';
 import {
   View, ActivityIndicator, Text, StyleSheet, ScrollView,
-  Dimensions, TouchableOpacity, Animated,
+  TouchableOpacity, Animated,
 } from 'react-native';
-import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
-import { recalculateCurrentMonthLedger, getTotalReservedForGoals, getSavingsHistory } from '../lib/savings';
+import { recalculateCurrentMonthLedger, getTotalReservedForGoals } from '../lib/savings';
 import { ensureRecurringEntriesForThisMonth } from '../lib/recurring';
-import { colors, fonts, radii, spacing, chartConfig } from '../lib/theme';
-import { resolvePersistentCharacter, getLastExpenseTimestamp } from '../lib/characters';
+import { colors, fonts, radii, spacing } from '../lib/theme';
+import { resolveCharacterState } from '../lib/characterEngine';
 import { getRacksOnly } from '../lib/slang';
 import { showAlert } from '../lib/dialog';
+import { getDailyBudget, getDailyLockEnabled, getTodaySpending, getDailyStatus } from '../lib/dailyBudget';
 import BudgetCharacter from '../components/BudgetCharacter';
 import ReactionText from '../components/ReactionText';
 import BudgetCard from '../components/BudgetCard';
-import SectionHeader from '../components/SectionHeader';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
-
-// ── Chart colors for pie slices ───────────────────────────────────
-const pieColors = ['#B00020', '#720014', '#888888', '#555555', '#3A3A3A', '#292929', '#666666'];
-
-function formatMonthLabel(dateStr) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
-}
+import DailyMeter from '../components/DailyMeter';
 
 function getMonthRange() {
   const now = new Date();
@@ -44,39 +36,33 @@ function getCurrentMonthName() {
 }
 
 export default function Home() {
-  const { session, loading } = useAuth();
+  const auth = useAuth() as any;
+  const session = auth?.session;
+  const loading = auth?.loading;
 
   // ── Financial state ──────────────────────────────────────────────
-  const [income, setIncome]                   = useState(0);
-  const [expenses, setExpenses]               = useState(0);
-  const [fetching, setFetching]               = useState(true);
+  const [income, setIncome] = useState(0);
+  const [expenses, setExpenses] = useState(0);
+  const [fetching, setFetching] = useState(true);
   const [accumulatedSavings, setAccumulatedSavings] = useState(0);
-  const [reservedForGoals, setReservedForGoals]     = useState(0);
-  const [categoryBreakdown, setCategoryBreakdown]   = useState([]);
-  const [savingsHistory, setSavingsHistory]         = useState([]);
-  const [lastExpenseTs, setLastExpenseTs]           = useState(0);
+  const [reservedForGoals, setReservedForGoals] = useState(0);
 
-  // ── Reaction state ───────────────────────────────────────────────
-  const [reactionText, setReactionText]     = useState(null);
-  const [showReaction, setShowReaction]     = useState(false);
-  const [shakeTrigger, setShakeTrigger]     = useState(false);
-  const [pulseTrigger, setPulseTrigger]     = useState(false);
-  const reactionFired = useRef(false);
+  // ── Daily budget state ───────────────────────────────────────────
+  const [dailySpent, setDailySpent] = useState(0);
+  const [dailyBudget, setDailyBudget] = useState<number | null>(null);
+  const [dailyLockEnabled, setDailyLockEnabled] = useState(false);
+  const [dailyLoading, setDailyLoading] = useState(true);
 
-  // ── Seeyuh logout animation ──────────────────────────────────────
-  const fadeAnim   = useRef(new Animated.Value(1)).current;
-  const [showSeeyuh, setShowSeeyuh] = useState(false);
+  // ── Logout animation ─────────────────────────────────────────────
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [showFarewell, setShowFarewell] = useState(false);
 
   // ── Data loading ─────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     if (!session) return;
     setFetching(true);
-    reactionFired.current = false;
     try {
       await ensureRecurringEntriesForThisMonth(session.user.id);
-
-      const expTs = await getLastExpenseTimestamp();
-      setLastExpenseTs(expTs);
 
       const { start, end } = getMonthRange();
       const [incomeRes, expenseRes] = await Promise.all([
@@ -84,64 +70,52 @@ export default function Home() {
         supabase.from('expenses').select('amount').eq('user_id', session.user.id).gte('date', start).lte('date', end),
       ]);
 
-      const incomeTotal  = (incomeRes.data  || []).reduce((sum, row) => sum + Number(row.amount), 0);
-      const expenseTotal = (expenseRes.data || []).reduce((sum, row) => sum + Number(row.amount), 0);
+      const incomeTotal  = (incomeRes.data  || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
+      const expenseTotal = (expenseRes.data || []).reduce((sum: number, row: any) => sum + Number(row.amount), 0);
 
       const accumulated = await recalculateCurrentMonthLedger(session.user.id, incomeTotal, expenseTotal);
       const reserved    = await getTotalReservedForGoals(session.user.id);
-      const history     = await getSavingsHistory(session.user.id);
-
-      const { data: expenseDetails } = await supabase
-        .from('expenses')
-        .select('amount, categories(name)')
-        .eq('user_id', session.user.id)
-        .gte('date', start)
-        .lte('date', end);
-
-      const breakdown = {};
-      (expenseDetails || []).forEach((exp) => {
-        const catName = exp.categories?.name || 'Uncategorized';
-        breakdown[catName] = (breakdown[catName] || 0) + Number(exp.amount);
-      });
 
       setIncome(incomeTotal);
       setExpenses(expenseTotal);
       setAccumulatedSavings(accumulated);
       setReservedForGoals(reserved);
-      setSavingsHistory(history);
-      setCategoryBreakdown(Object.entries(breakdown).sort((a, b) => b[1] - a[1]));
-
-      const remainingVal = incomeTotal - expenseTotal;
-
-      // Popup phrase without shifting layout
-      if (!reactionFired.current) {
-        if (remainingVal < 0) {
-          setReactionText('FWÄÄH?! (OVER BUDGET)');
-          setShowReaction(true);
-          setShakeTrigger(v => !v);
-        } else if (remainingVal > 150) {
-          setReactionText('WE UP. (STACKIN\' BANDS)');
-          setShowReaction(true);
-          setPulseTrigger(v => !v);
-        }
-        reactionFired.current = true;
-      }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to load dashboard data:', err);
-      showAlert('Error loading data', err.message || 'Something went wrong.');
+      showAlert('Error loading data', err?.message || 'Something went wrong.');
     } finally {
       setFetching(false);
+    }
+  }, [session]);
+
+  const loadDailyData = useCallback(async () => {
+    if (!session) return;
+    setDailyLoading(true);
+    try {
+      const [budget, lock, spent] = await Promise.all([
+        getDailyBudget(),
+        getDailyLockEnabled(),
+        getTodaySpending(session.user.id),
+      ]);
+      setDailyBudget(budget);
+      setDailyLockEnabled(lock);
+      setDailySpent(spent);
+    } catch (_) {
+      // Non-critical: daily meter degrades gracefully
+    } finally {
+      setDailyLoading(false);
     }
   }, [session]);
 
   useFocusEffect(
     useCallback(() => {
       loadData();
-    }, [loadData])
+      loadDailyData();
+    }, [loadData, loadDailyData])
   );
 
   async function handleLogout() {
-    setShowSeeyuh(true);
+    setShowFarewell(true);
     Animated.timing(fadeAnim, {
       toValue: 0,
       duration: 800,
@@ -151,42 +125,30 @@ export default function Home() {
     });
   }
 
-  const remaining  = income - expenses;
-  const available  = accumulatedSavings - reservedForGoals;
-  const screenW    = Dimensions.get('window').width;
-  const chartWidth = Math.min(screenW - 48, 580);
+  const remaining = income - expenses;
+  const available = accumulatedSavings - reservedForGoals;
 
-  // Memoized character resolution
-  const activeCharacter = useMemo(() => {
-    return resolvePersistentCharacter({
+  // ── Daily budget metrics ─────────────────────────────────────────
+  const dailyBudgetRatio     = dailyBudget ? dailySpent / dailyBudget : 0;
+  const isDailyBudgetExceeded = dailyBudget ? dailySpent >= dailyBudget : false;
+  const dailyStatus          = getDailyStatus(dailySpent, dailyBudget);
+
+  // ── Character State Resolution (P0–P7 Priority Resolver) ────────
+  const characterState: any = useMemo(() => {
+    return resolveCharacterState({
+      incomeTotal:     income,
+      expenseTotal:    expenses,
       remaining,
-      isOverBudget: remaining < 0,
-      lastExpenseTimestamp: lastExpenseTs,
+      availableSavings: available,
+      // Daily budget context
+      dailySpent,
+      dailyBudget:     dailyBudget ?? undefined,
+      dailyBudgetRatio,
+      isDailyBudgetExceeded,
     });
-  }, [remaining, lastExpenseTs]);
+  }, [income, expenses, remaining, available, dailySpent, dailyBudget, dailyBudgetRatio, isDailyBudgetExceeded]);
 
   const totalRacks = useMemo(() => getRacksOnly(accumulatedSavings), [accumulatedSavings]);
-
-  // Memoized chart dataset objects
-  const lineChartData = useMemo(() => {
-    if (savingsHistory.length <= 1) return null;
-    return {
-      labels: savingsHistory.map((row) => formatMonthLabel(row.month)),
-      datasets: [{ data: savingsHistory.map((row) => Number(row.accumulated_total)) }],
-    };
-  }, [savingsHistory]);
-
-  const pieChartData = useMemo(() => {
-    if (categoryBreakdown.length === 0) return null;
-    return categoryBreakdown.map(([name, total], index) => ({
-      name,
-      amount: total,
-      color: pieColors[index % pieColors.length],
-      legendFontColor: colors.textSecondary,
-      legendFontSize: 11,
-      legendFontFamily: fonts.body,
-    }));
-  }, [categoryBreakdown]);
 
   if (loading) {
     return (
@@ -200,15 +162,14 @@ export default function Home() {
 
   return (
     <Animated.View style={[styles.wrapper, { opacity: fadeAnim }]}>
-      {/* Corner Global figures as lightweight stamps */}
-      <GlobalCornerFigure view="side" size={60} opacity={0.3} position="top-right" />
-      <GlobalCornerFigure view="back" size={65} opacity={0.25} position="bottom-left" />
+      {/* Decorative corner figure */}
+      <GlobalCornerFigure assetId="robert_guidance" size={65} opacity={0.2} position="top-right" />
 
-      {/* SEEYUH logout overlay */}
-      {showSeeyuh && (
-        <View style={styles.seeyuhOverlay}>
-          <BudgetCharacter character="master" size="large" animated={false} />
-          <Text style={styles.seeyuhText}>SEEYUH.</Text>
+      {/* Robert Freeman Logout Farewell Overlay */}
+      {showFarewell && (
+        <View style={styles.farewellOverlay}>
+          <BudgetCharacter assetId="robert_reassure" size="large" animated={false} />
+          <Text style={styles.farewellText}>STAY DISCIPLINED.</Text>
         </View>
       )}
 
@@ -223,55 +184,62 @@ export default function Home() {
           <Text style={styles.monthLabel}>{getCurrentMonthName()}</Text>
         </View>
 
-        {/* ── Character + Reaction Section ────────────────────── */}
+        {/* ── Character & Reaction Section ────────────────────── */}
         <View style={styles.characterSection}>
           <BudgetCharacter
-            character={activeCharacter}
+            assetId={characterState.assetId}
+            animationType={characterState.animationType}
             size="large"
             animated
-            shake={shakeTrigger}
-            pulse={pulseTrigger}
+            shake={characterState.shake}
+            pulse={characterState.pulse}
+            isOverBudget={remaining < 0}
           />
           {/* ReactionText container with fixed height = ZERO layout shift */}
           <ReactionText
-            text={reactionText}
-            visible={showReaction}
-            onDone={() => {
-              setShowReaction(false);
-            }}
+            text={characterState.reactionText}
+            visible={true}
+            holdMs={999999}
           />
         </View>
 
-        {/* ── Total Savings Card ───────────────────────────────── */}
-        <BudgetCard style={styles.savingsCard}>
-          <GlobalCornerFigure view="frontAlt" size={48} opacity={0.35} position="bottom-right" />
-          <Text style={styles.cardSectionLabel}>TOTAL BANDS (Savings)</Text>
+        {/* ── Total Savings Hero Card ──────────────────────────── */}
+        <BudgetCard accent={remaining >= 0} danger={remaining < 0} style={styles.savingsCard}>
+          <Text style={styles.cardSectionLabel}>TOTAL SAVINGS</Text>
           {fetching ? (
             <ActivityIndicator color={colors.primary} style={{ marginVertical: 12 }} />
           ) : (
             <>
-              <Text style={styles.heroNumber}>${accumulatedSavings.toFixed(2)}</Text>
+              <Text style={styles.heroNumber}>{accumulatedSavings.toFixed(2)} DT</Text>
               {totalRacks && <Text style={styles.racksTag}>{totalRacks}</Text>}
               <Text style={styles.heroSub}>
-                {remaining >= 0 ? '+' : ''}${remaining.toFixed(2)} THIS MONTH'S BAG
+                {remaining >= 0 ? '+' : ''}{remaining.toFixed(2)} DT THIS MONTH
               </Text>
             </>
           )}
         </BudgetCard>
 
+        {/* ── Daily Spending Meter ─────────────────────────────── */}
+        <DailyMeter
+          dailySpent={dailySpent}
+          dailyBudget={dailyBudget}
+          lockEnabled={dailyLockEnabled}
+          loading={dailyLoading}
+        />
+
         {/* ── Income / Spent row ───────────────────────────────── */}
         {!fetching && (
           <View style={styles.statRow}>
             <View style={[styles.statCard, { marginRight: 6 }]}>
-              <Text style={styles.statCardLabel}>BAG IN (Income)</Text>
+              <Text style={styles.statCardLabel}>INCOME</Text>
               <Text style={[styles.statCardValue, { color: colors.income }]}>
-                +${income.toFixed(2)}
+                +{income.toFixed(2)} DT
               </Text>
             </View>
             <View style={[styles.statCard, { marginLeft: 6 }]}>
-              <Text style={styles.statCardLabel}>BLEED (Expense)</Text>
+              <Text style={styles.statCardLabel}>EXPENSES</Text>
               <Text style={[styles.statCardValue, expenses > income && styles.dangerText]}>
-                -${expenses.toFixed(2)}
+                -{expenses.toFixed(2)} DT
               </Text>
             </View>
           </View>
@@ -281,110 +249,71 @@ export default function Home() {
         {!fetching && (
           <View style={styles.statRow}>
             <View style={[styles.statCard, { marginRight: 6 }]}>
-              <Text style={styles.statCardLabel}>UNLOCKED BANDS (Available)</Text>
+              <Text style={styles.statCardLabel}>AVAILABLE BALANCE</Text>
               <Text style={[styles.statCardValue, available < 0 && styles.dangerText]}>
-                ${available.toFixed(2)}
+                {available.toFixed(2)} DT
               </Text>
             </View>
             <View style={[styles.statCard, { marginLeft: 6 }]}>
-              <Text style={styles.statCardLabel}>LOCKED BANDS (Goals)</Text>
+              <Text style={styles.statCardLabel}>LOCKED FOR GOALS</Text>
               <Text style={[styles.statCardValue, { color: colors.goals }]}>
-                ${reservedForGoals.toFixed(2)}
+                {reservedForGoals.toFixed(2)} DT
               </Text>
             </View>
           </View>
         )}
 
-        {/* ── Savings Line Chart ────────────────────────────────── */}
-        {lineChartData && (
-          <BudgetCard>
-            <SectionHeader title="BANDS OVER TIME" />
-            <LineChart
-              data={lineChartData}
-              width={chartWidth}
-              height={160}
-              chartConfig={chartConfig}
-              bezier
-              style={{ borderRadius: radii.sm, marginTop: 8 }}
-              withInnerLines
-            />
-          </BudgetCard>
-        )}
-
-        {/* ── Category breakdown list ───────────────────────────── */}
-        {categoryBreakdown.length > 0 && (
-          <BudgetCard>
-            <SectionHeader title="WHERE THE BANDS WENT" />
-            {categoryBreakdown.map(([name, total]) => (
-              <View key={name} style={styles.breakdownRow}>
-                <Text style={styles.breakdownName}>{name}</Text>
-                <Text style={styles.breakdownAmount}>${total.toFixed(2)}</Text>
-              </View>
-            ))}
-          </BudgetCard>
-        )}
-
-        {/* ── Pie Chart ────────────────────────────────────────── */}
-        {pieChartData && (
-          <BudgetCard>
-            <SectionHeader title="BANDS SPLIT" />
-            <PieChart
-              data={pieChartData}
-              width={chartWidth}
-              height={160}
-              chartConfig={{ color: () => colors.text }}
-              accessor="amount"
-              backgroundColor="transparent"
-              paddingLeft="15"
-            />
-          </BudgetCard>
-        )}
-
-        {/* ── Empty state when no data ──────────────────────────── */}
-        {!fetching && income === 0 && expenses === 0 && (
-          <BudgetCard>
-            <View style={styles.emptyState}>
-              <BudgetCharacter character="master" size="medium" animated />
-              <Text style={styles.emptyTitle}>NO BANDS YET.</Text>
-              <Text style={styles.emptyBody}>Secure the bag or log an expense to start stackin'.</Text>
-            </View>
-          </BudgetCard>
-        )}
-
-        {/* ── Navigation ───────────────────────────────────────── */}
-        <View style={styles.navSection}>
-          <Link href="/add-expense" asChild>
-            <TouchableOpacity style={StyleSheet.flatten([styles.navBtn, styles.navBtnAccent])}>
-              <Text style={styles.navBtnText}>- BLEED (Expense)</Text>
-            </TouchableOpacity>
-          </Link>
-          <View style={styles.navGap} />
+        {/* ── Primary Action Grid (2-Column) ───────────────────── */}
+        <View style={styles.actionGrid}>
           <Link href="/add-income" asChild>
-            <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>+ BAG IN (Income)</Text>
+            <TouchableOpacity style={StyleSheet.flatten([styles.gridBtn, styles.incomeGridBtn])}>
+              <Text style={styles.gridBtnText}>+ ADD INCOME</Text>
             </TouchableOpacity>
           </Link>
-          <View style={styles.navGap} />
-          <Link href="/goals" asChild>
-            <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>LOCKED BANDS (Goals)</Text>
-            </TouchableOpacity>
-          </Link>
-          <View style={styles.navGap} />
-          <Link href="/budgets" asChild>
-            <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>BAND LIMITS (Budgets)</Text>
-            </TouchableOpacity>
-          </Link>
-          <View style={styles.navGap} />
-          <Link href="/categories" asChild>
-            <TouchableOpacity style={StyleSheet.flatten([styles.navBtn])}>
-              <Text style={styles.navBtnText}>DRAIN SECTORS (Categories)</Text>
+          <Link href="/add-expense" asChild>
+            <TouchableOpacity style={StyleSheet.flatten([styles.gridBtn, styles.expenseGridBtn])}>
+              <Text style={styles.gridBtnText}>- ADD EXPENSE</Text>
             </TouchableOpacity>
           </Link>
         </View>
 
-        {/* ── Logout ───────────────────────────────────────────── */}
+        <View style={styles.actionGrid}>
+          <Link href="/goals" asChild>
+            <TouchableOpacity style={styles.gridBtn}>
+              <Text style={styles.gridBtnText}>SAVINGS GOALS</Text>
+            </TouchableOpacity>
+          </Link>
+          <Link href="/budgets" asChild>
+            <TouchableOpacity style={styles.gridBtn}>
+              <Text style={styles.gridBtnText}>BUDGETS</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+
+        {/* ── Dedicated Analytics & Settings Navigation ────────── */}
+        <View style={styles.navSection}>
+          <Link href={'/statistics' as any} asChild>
+            <TouchableOpacity style={StyleSheet.flatten([styles.navBtn, styles.statsBtn])}>
+              <Text style={styles.statsBtnText}>📊 ANALYTICS & TRENDS</Text>
+            </TouchableOpacity>
+          </Link>
+          <View style={styles.navGap} />
+          <View style={styles.navRow}>
+            <Link href="/categories" asChild>
+              <TouchableOpacity style={StyleSheet.flatten([styles.navBtn, styles.navHalf])}>
+                <Text style={styles.navBtnText}>CATEGORIES</Text>
+              </TouchableOpacity>
+            </Link>
+            <View style={{ width: 8 }} />
+            <Link href="/settings" asChild>
+              <TouchableOpacity style={StyleSheet.flatten([styles.navBtn, styles.navHalf, styles.settingsBtn])}>
+                <Text style={styles.settingsBtnText}>⚙ SETTINGS</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </View>
+
+        {/* ── Logout Button ────────────────────────────────────── */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
           <Text style={styles.logoutText}>LOG OUT</Text>
         </TouchableOpacity>
@@ -399,22 +328,22 @@ const styles = StyleSheet.create({
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background },
   wrapper: { flex: 1, backgroundColor: colors.background, position: 'relative' },
   screen:  { flex: 1 },
-  scrollContent: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 40, maxWidth: 680, alignSelf: 'center', width: '100%' },
+  scrollContent: { paddingTop: 56, paddingHorizontal: 20, paddingBottom: 40, maxWidth: 580, alignSelf: 'center', width: '100%' },
 
   // Header
-  header:      { alignItems: 'center', marginBottom: spacing.md },
-  appTitle:    { fontFamily: fonts.display, fontSize: 42, color: colors.text, letterSpacing: 4 },
-  monthLabel:  { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted, letterSpacing: 3, marginTop: 2 },
+  header:     { alignItems: 'center', marginBottom: spacing.md },
+  appTitle:   { fontFamily: fonts.display, fontSize: 42, color: colors.textPrimary, letterSpacing: 4 },
+  monthLabel: { fontFamily: fonts.bodySemiBold, fontSize: 11, color: colors.primary, letterSpacing: 3, marginTop: 2 },
 
   // Character section with fixed minimum height
-  characterSection: { alignItems: 'center', marginBottom: spacing.md, minHeight: 260, justifyContent: 'center' },
+  characterSection: { alignItems: 'center', marginBottom: spacing.md, minHeight: 250, justifyContent: 'center' },
 
   // Savings hero card
-  savingsCard:     { alignItems: 'center', paddingVertical: spacing.lg, position: 'relative', overflow: 'hidden' },
+  savingsCard:      { alignItems: 'center', paddingVertical: spacing.lg, position: 'relative', overflow: 'hidden' },
   cardSectionLabel: { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: 2, marginBottom: 8 },
-  heroNumber:      { fontFamily: fonts.bodyBold, fontSize: 44, color: colors.text },
-  racksTag:        { fontFamily: fonts.display, fontSize: 18, color: colors.goals, letterSpacing: 2, marginTop: 2 },
-  heroSub:         { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 4, letterSpacing: 1 },
+  heroNumber:       { fontFamily: fonts.bodyBold, fontSize: 42, color: colors.textPrimary },
+  racksTag:         { fontFamily: fonts.display, fontSize: 18, color: colors.primary, letterSpacing: 2, marginTop: 2 },
+  heroSub:          { fontFamily: fonts.body, fontSize: 12, color: colors.textSecondary, marginTop: 4, letterSpacing: 1 },
 
   // Stat row cards
   statRow:          { flexDirection: 'row', marginBottom: spacing.md },
@@ -422,47 +351,61 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cardSecondary,
     borderRadius: radii.sm,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     padding: spacing.md,
   },
-  statCardLabel:    { fontFamily: fonts.body, fontSize: 10, color: colors.textMuted, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
-  statCardValue:    { fontFamily: fonts.bodyBold, fontSize: 20, color: colors.text },
-  dangerText:       { color: colors.expense },
+  statCardLabel:    { fontFamily: fonts.bodySemiBold, fontSize: 10, color: colors.textMuted, letterSpacing: 1.2, marginBottom: 6, textTransform: 'uppercase' },
+  statCardValue:    { fontFamily: fonts.bodyBold, fontSize: 18, color: colors.textPrimary },
+  dangerText:       { color: colors.danger },
 
-  // Breakdown
-  breakdownRow:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
-  breakdownName:   { fontFamily: fonts.body, fontSize: 14, color: colors.text },
-  breakdownAmount: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textSecondary },
-
-  // Empty state
-  emptyState: { alignItems: 'center', paddingVertical: spacing.lg },
-  emptyTitle: { fontFamily: fonts.display, fontSize: 28, color: colors.text, letterSpacing: 2, marginTop: spacing.md },
-  emptyBody:  { fontFamily: fonts.body, fontSize: 13, color: colors.textSecondary, marginTop: 6, textAlign: 'center' },
+  // Action Grid
+  actionGrid: { flexDirection: 'row', gap: 10, marginBottom: 10 },
+  gridBtn: {
+    flex: 1,
+    backgroundColor: colors.card,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 48,
+  },
+  incomeGridBtn:  { borderColor: colors.income },
+  expenseGridBtn: { borderColor: colors.expense },
+  gridBtnText:    { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.textPrimary, letterSpacing: 1 },
 
   // Navigation buttons
-  navSection: { marginTop: spacing.lg },
+  navSection: { marginTop: spacing.sm },
   navBtn: {
-    backgroundColor: colors.cardSecondary,
+    backgroundColor: colors.card,
     borderRadius:    radii.sm,
-    borderWidth:     1,
+    borderWidth:     1.5,
     borderColor:     colors.border,
     paddingVertical: 14,
     alignItems:      'center',
+    justifyContent:  'center',
+    minHeight:       48,
   },
-  navBtnAccent:  { borderColor: colors.primary },
-  navBtnText:    { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.text, letterSpacing: 1.2 },
+  navRow:        { flexDirection: 'row' },
+  navHalf:       { flex: 1 },
+  statsBtn:      { borderColor: colors.primary, backgroundColor: colors.cardElevated },
+  statsBtnText:  { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.primaryBright, letterSpacing: 1.2 },
+  navBtnText:    { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.textSecondary, letterSpacing: 1.2 },
+  settingsBtn:   { borderColor: colors.primary },
+  settingsBtnText: { fontFamily: fonts.bodySemiBold, fontSize: 13, color: colors.primary, letterSpacing: 1.2 },
   navGap:        { height: 8 },
 
   // Logout
   logoutBtn:  { marginTop: spacing.xl, paddingVertical: 14, alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border },
-  logoutText: { fontFamily: fonts.body, fontSize: 12, color: colors.textMuted, letterSpacing: 2 },
+  logoutText: { fontFamily: fonts.bodySemiBold, fontSize: 12, color: colors.textMuted, letterSpacing: 2 },
 
-  // Seeyuh overlay
-  seeyuhOverlay: {
+  // Farewell overlay
+  farewellOverlay: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     justifyContent: 'center', alignItems: 'center',
     backgroundColor: colors.background, zIndex: 100,
   },
-  seeyuhText: { fontFamily: fonts.display, fontSize: 52, color: colors.text, letterSpacing: 8, marginTop: spacing.md },
+  farewellText: { fontFamily: fonts.display, fontSize: 44, color: colors.textPrimary, letterSpacing: 4, marginTop: spacing.md },
 });

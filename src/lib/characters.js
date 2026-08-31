@@ -1,122 +1,92 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
 // ─────────────────────────────────────────────────────────────────
-// Budget Buddy — centralized character configuration
-// All asset paths, reaction→character mappings, and
-// global character view definitions live here.
+// Budget Buddy — Centralized Character Asset Registry
+// Maps all 20 canonical PNG assets and 8 delivered animation sequences.
 // ─────────────────────────────────────────────────────────────────
 
-// ── Optimized WebP assets (Crisp retina downscaled, 90% size reduction) ──
-export const characterAssets = {
-  master:     require('../../assets/characters/optimized/carti-master.webp'),
-  selfTitled: require('../../assets/characters/optimized/carti-self-titled.webp'),
-  dieLit:     require('../../assets/characters/optimized/carti-die-lit.webp'),
-  wlr:        require('../../assets/characters/optimized/carti-wlr.webp'),
-  global:     require('../../assets/characters/optimized/carti-global.webp'),
-  bunny:      null,
+// ── 20 Canonical Character PNGs (Hash-Verified) ──
+export const canonicalAssets = {
+  // Robert Freeman (Baseline / Host)
+  robert_neutral:  require('../../assets/characters/canonical/robert_neutral.png'),
+  robert_guidance: require('../../assets/characters/canonical/robert_guidance.png'),
+  robert_reassure: require('../../assets/characters/canonical/robert_reassure.png'),
+
+  // Tom DuBois (Budget Pressure / Preventive Warning)
+  tom_caution: require('../../assets/characters/canonical/tom_caution.png'),
+  tom_alarm:   require('../../assets/characters/canonical/tom_alarm.png'),
+
+  // Stinkmeaner (Large / Consequential / Repeated Expense)
+  stink_stern:     require('../../assets/characters/canonical/stink_stern.png'),
+  stink_explosive: require('../../assets/characters/canonical/stink_explosive.png'),
+
+  // Uncle Ruckus (Critical Warning / Over-Budget Emergency)
+  ruckus_alarm:     require('../../assets/characters/canonical/ruckus_alarm.png'),
+  ruckus_emergency: require('../../assets/characters/canonical/ruckus_emergency.png'),
+
+  // Riley Freeman (Light / Discretionary Expense)
+  riley_light: require('../../assets/characters/canonical/riley_light.png'),
+  riley_spend: require('../../assets/characters/canonical/riley_spend.png'),
+
+  // Jazmine DuBois (Goal Progress / Completion)
+  jazmine_progress: require('../../assets/characters/canonical/jazmine_progress.png'),
+  jazmine_complete: require('../../assets/characters/canonical/jazmine_complete.png'),
+
+  // Huey Freeman (Statistics / Analytics Host)
+  huey_neutral: require('../../assets/characters/canonical/huey_neutral.png'),
+  huey_analyze: require('../../assets/characters/canonical/huey_analyze.png'),
+  huey_review:  require('../../assets/characters/canonical/huey_review.png'),
+
+  // A Pimp Named Slickback (Income / Cash-In)
+  slickback_cash:    require('../../assets/characters/canonical/slickback_cash.png'),
+  slickback_bigcash: require('../../assets/characters/canonical/slickback_bigcash.png'),
+
+  // Ed Wuncler III (Sustained Wealth / Abundance)
+  ed_wealth:  require('../../assets/characters/canonical/ed_wealth.png'),
+  ed_surplus: require('../../assets/characters/canonical/ed_surplus.png'),
 };
 
-// ── Individual cropped global corner figures (23KB-33KB each) ──
-export const globalCornerAssets = {
-  front:    require('../../assets/characters/optimized/global-front.webp'),
-  frontAlt: require('../../assets/characters/optimized/global-frontAlt.webp'),
-  side:     require('../../assets/characters/optimized/global-side.webp'),
-  back:     require('../../assets/characters/optimized/global-back.webp'),
+// ── Delivered Animated WebP Sequences ──
+export const animationWebPAssets = {
+  stink_stern:     require('../../assets/characters/animations/stink_stern.webp'),
+  stink_explosive: require('../../assets/characters/animations/stink_explosive.webp'),
+
+  ruckus_alarm:               require('../../assets/characters/animations/ruckus_alarm.webp'),
+  ruckus_alarm_critical_hold: require('../../assets/characters/animations/ruckus_alarm_critical_hold.webp'),
+  ruckus_alarm_exit:          require('../../assets/characters/animations/ruckus_alarm_exit.webp'),
+
+  ruckus_emergency:               require('../../assets/characters/animations/ruckus_emergency.webp'),
+  ruckus_emergency_critical_hold: require('../../assets/characters/animations/ruckus_emergency_critical_hold.webp'),
+  ruckus_emergency_exit:          require('../../assets/characters/animations/ruckus_emergency_exit.webp'),
+
+  jazmine_progress: require('../../assets/characters/animations/jazmine_progress.webp'),
+  jazmine_complete: require('../../assets/characters/animations/jazmine_complete.webp'),
+
+  slickback_cash:    require('../../assets/characters/animations/slickback_cash.webp'),
+  slickback_bigcash: require('../../assets/characters/animations/slickback_bigcash.webp'),
 };
 
-// ── Native aspect ratios (width / height) ─────────────────────────
-export const characterAspectRatio = {
-  master:     512 / 768,    // ~0.667 — portrait
-  selfTitled: 512 / 768,    // ~0.667 — portrait
-  dieLit:     512 / 768,    // ~0.667 — portrait
-  wlr:        512 / 768,    // ~0.667 — portrait
-  global:     768 / 512,    // ~1.5   — landscape (4-view sheet)
-  corner:     256 / 384,    // ~0.667 — individual view portrait
-  bunny:      1,
-};
+// ── Native Animation Parameter Profiles ──
+export const nativeProfiles = require('../constants/nativeAnimationProfiles.json');
 
-// ── Global character view offsets ─────────────────────────────────
-export const globalViews = {
-  front:     0,  // front-left view
-  frontAlt:  1,  // front-right
-  side:      2,  // side angle
-  back:      3,  // back angle
-};
+// ── Standard Character Aspect Ratio (512 / 768 = ~0.667) ──
+export const CHARACTER_ASPECT_RATIO = 512 / 768;
 
-// ── Reaction → character mapping ──────────────────────────────────
-export const reactionCharacterMap = {
-  normal:         'master',
-  incomeAdded:    'selfTitled',
-  saving:         'selfTitled',
-  expenseAdded:   'dieLit',
-  warning:        'dieLit',
-  spending:       'dieLit',
-  overBudget:     'wlr',
-  goalCompleted:  'global',
-  happy:          'selfTitled',
-  empty:          'master',
-  broke:          'wlr',
-};
-
-// ── Slang reaction phrases ────────────────────────────────────────
-export const reactionPhrases = {
-  incomeAdded:   'BAG SECURED (+MUNYUN)',
-  expenseAdded:  'MUNYUN BLEED (-)',
-  overBudget:    'FWÄÄH?!',
-  warning:       '⚠ WATCH THE MUNYUN',
-  goalCompleted: 'BENJIS STACKED',
-  saving:        'WE UP. (STACKIN\' BENJIS)',
-  broke:         'WHOLE LOTTA NOTHING.',
-};
-
-// ── Size presets (rendered height in px) ───────────────────────────
+// ── Standard Size Presets (Rendered height in px) ──
 export const characterSizes = {
-  nano:   44,
   micro:  60,
-  small:  80,
+  small:  90,
   medium: 150,
   large:  210,
   hero:   260,
 };
 
-// ── Persistent character state logic ──────────────────────────────
-const EXPENSE_TIMESTAMP_KEY = '@budget_buddy_last_expense_ts';
-let inMemoryExpenseTs = 0;
-
-export async function recordExpenseLogged() {
-  const now = Date.now();
-  inMemoryExpenseTs = now;
-  try {
-    await AsyncStorage.setItem(EXPENSE_TIMESTAMP_KEY, String(now));
-  } catch (_) {}
-  return now;
-}
-
-export async function getLastExpenseTimestamp() {
-  if (inMemoryExpenseTs > 0) return inMemoryExpenseTs;
-  try {
-    const val = await AsyncStorage.getItem(EXPENSE_TIMESTAMP_KEY);
-    if (val) {
-      inMemoryExpenseTs = Number(val);
-      return inMemoryExpenseTs;
+// Backward-compatible fallback getter
+export function getCharacterAsset(assetId, animationType = 'native', ruckusPhase = 'entrance') {
+  if (animationType === 'webp') {
+    if (assetId === 'ruckus_alarm' || assetId === 'ruckus_emergency') {
+      const key = `${assetId}${ruckusPhase === 'hold' ? '_critical_hold' : ruckusPhase === 'exit' ? '_exit' : ''}`;
+      return animationWebPAssets[key] || animationWebPAssets[assetId] || canonicalAssets[assetId];
     }
-  } catch (_) {}
-  return 0;
-}
-
-export function resolvePersistentCharacter({ remaining = 0, isOverBudget = false, lastExpenseTimestamp = 0 }) {
-  if (isOverBudget || remaining < 0) {
-    return 'wlr';
+    return animationWebPAssets[assetId] || canonicalAssets[assetId];
   }
-
-  const now = Date.now();
-  if (lastExpenseTimestamp && now - lastExpenseTimestamp < 60000) {
-    return 'dieLit';
-  }
-
-  if (remaining > 150) {
-    return 'selfTitled';
-  }
-
-  return 'master';
+  return canonicalAssets[assetId] || canonicalAssets.robert_neutral;
 }

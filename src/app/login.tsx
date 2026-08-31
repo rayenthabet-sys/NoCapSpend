@@ -3,16 +3,19 @@ import { View, TextInput, Text, StyleSheet, TouchableOpacity, ScrollView } from 
 import { Redirect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { colors, fonts, radii, spacing, labels } from '../lib/theme';
+import { colors, fonts, radii, spacing } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
 import BudgetCharacter from '../components/BudgetCharacter';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
 
 export default function Login() {
-  const { session } = useAuth();
+  const auth = useAuth() as any;
+  const session = auth?.session;
+  const loading = auth?.loading;
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
 
   if (session) {
     return <Redirect href="/" />;
@@ -23,9 +26,9 @@ export default function Login() {
       showAlert('Missing fields', 'Enter your email and password.');
       return;
     }
-    setLoading(true);
+    setSigningIn(true);
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: password.trim() });
-    setLoading(false);
+    setSigningIn(false);
     if (error) showAlert('Error', error.message);
   }
 
@@ -34,9 +37,9 @@ export default function Login() {
       showAlert('Missing fields', 'Enter your email and password.');
       return;
     }
-    setLoading(true);
+    setSigningIn(true);
     const { error } = await supabase.auth.signUp({ email: email.trim(), password: password.trim() });
-    setLoading(false);
+    setSigningIn(false);
     if (error) showAlert('Error', error.message);
     else showAlert('Success', 'Account created — you can log in now.');
   }
@@ -47,20 +50,19 @@ export default function Login() {
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
     >
-      <GlobalCornerFigure view="side" size={80} opacity={0.3} position="top-right" />
-      <GlobalCornerFigure view="back" size={75} opacity={0.25} position="bottom-left" />
+      <GlobalCornerFigure assetId="robert_guidance" size={75} opacity={0.2} position="top-right" />
 
       <View style={styles.characterWrapper}>
-        <BudgetCharacter character="master" size="hero" animated />
+        <BudgetCharacter assetId="robert_neutral" size="hero" animated />
       </View>
 
       <Text style={styles.title}>BUDGET BUDDY</Text>
-      <Text style={styles.subtitle}>COUNTIN' BANDS & RACKS</Text>
+      <Text style={styles.subtitle}>TRACK YOUR FINANCES</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Email address"
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={colors.textMuted}
         autoCapitalize="none"
         keyboardType="email-address"
         value={email}
@@ -69,7 +71,7 @@ export default function Login() {
       <TextInput
         style={styles.input}
         placeholder="Password"
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={colors.textMuted}
         secureTextEntry
         value={password}
         onChangeText={setPassword}
@@ -78,9 +80,9 @@ export default function Login() {
       <TouchableOpacity
         style={[styles.button, styles.primaryButton]}
         onPress={signIn}
-        disabled={loading}
+        disabled={signingIn}
       >
-        <Text style={styles.buttonText}>{loading ? 'LOGGING IN...' : 'LOGIN'}</Text>
+        <Text style={styles.buttonText}>{signingIn ? 'LOGGING IN...' : 'LOGIN'}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 10 }} />
@@ -88,10 +90,10 @@ export default function Login() {
       <TouchableOpacity
         style={[styles.button, styles.secondaryButton]}
         onPress={signUp}
-        disabled={loading}
+        disabled={signingIn}
       >
         <Text style={[styles.buttonText, { color: colors.textSecondary }]}>
-          {loading ? 'WAIT...' : 'CREATE ACCOUNT'}
+          {signingIn ? 'WAIT...' : 'CREATE ACCOUNT'}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -120,34 +122,34 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: fonts.display,
     fontSize: 42,
-    color: colors.text,
+    color: colors.textPrimary,
     textAlign: 'center',
     letterSpacing: 4,
   },
   subtitle: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.bodySemiBold,
     fontSize: 12,
-    color: colors.textMuted,
+    color: colors.primary,
     textAlign: 'center',
     marginBottom: spacing.xl,
     letterSpacing: 2,
   },
   input: {
     fontFamily: fonts.body,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.sm,
     padding: 14,
     marginBottom: 14,
-    backgroundColor: colors.card,
-    color: colors.text,
+    backgroundColor: colors.inputBg,
+    color: colors.textPrimary,
     fontSize: 15,
   },
   button: {
     borderRadius: radii.sm,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     minHeight: 48,
     justifyContent: 'center',
   },
@@ -162,7 +164,7 @@ const styles = StyleSheet.create({
   buttonText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 14,
-    color: colors.text,
+    color: colors.textPrimary,
     letterSpacing: 1.5,
   },
 });

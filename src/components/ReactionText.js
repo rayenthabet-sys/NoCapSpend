@@ -1,35 +1,48 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, View, Text, StyleSheet } from 'react-native';
+import { Animated, View, StyleSheet } from 'react-native';
 import { colors, fonts, animation } from '../lib/theme';
 
 /**
  * ReactionText
  *
- * Floating reaction phrase with zero layout shift.
- * Keeps its reserved layout container height so components below never move.
+ * Fixed: animation ref tracked so any running sequence is explicitly stopped
+ * before a new one starts. Prevents ghost opacity (opacity stuck at 0) when
+ * text/visible props change while a prior 999999ms-hold animation is active.
  *
- * Props:
- *   text      string   the phrase to display
- *   visible   bool     set to true to trigger the animation
- *   onDone    fn       called when fade-out completes
- *   holdMs    number   how long to hold the text visible (default: 2000ms)
+ * @param {Object} [props]
+ * @param {string | null} [props.text]
+ * @param {boolean} [props.visible]
+ * @param {() => void} [props.onDone]
+ * @param {number} [props.holdMs]
  */
-export default function ReactionText({ text, visible, onDone, holdMs = 2000 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
+export default function ReactionText({
+  text = null,
+  visible = false,
+  onDone = undefined,
+  holdMs = 2200,
+} = {}) {
+  const opacity    = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(6)).current;
+  // Track the running animation so it can be stopped before starting a new one.
+  const animRef = useRef(null);
 
   useEffect(() => {
+    // ── Stop any in-flight animation before doing anything else ──────
+    if (animRef.current) {
+      animRef.current.stop();
+      animRef.current = null;
+    }
+
     if (!visible || !text) {
       opacity.setValue(0);
       return;
     }
 
-    // Reset
+    // Reset values to start position before every new animation run.
     opacity.setValue(0);
     translateY.setValue(6);
 
-    Animated.sequence([
-      // Fade + float in
+    const anim = Animated.sequence([
       Animated.parallel([
         Animated.timing(opacity, {
           toValue:  1,
@@ -42,18 +55,29 @@ export default function ReactionText({ text, visible, onDone, holdMs = 2000 }) {
           useNativeDriver: true,
         }),
       ]),
-      // Hold
       Animated.delay(holdMs),
-      // Fade out
       Animated.timing(opacity, {
         toValue:  0,
         duration: animation.normal,
         useNativeDriver: true,
       }),
-    ]).start(({ finished }) => {
+    ]);
+
+    animRef.current = anim;
+
+    anim.start(({ finished }) => {
+      animRef.current = null;
       if (finished && onDone) onDone();
     });
-  }, [visible, text, holdMs]);
+
+    // ── Cleanup: stop animation if component unmounts or deps change ─
+    return () => {
+      if (animRef.current) {
+        animRef.current.stop();
+        animRef.current = null;
+      }
+    };
+  }, [visible, text, holdMs, opacity, translateY, onDone]);
 
   return (
     <View style={styles.container} pointerEvents="none">
@@ -83,7 +107,7 @@ const styles = StyleSheet.create({
   text: {
     fontFamily:    fonts.display,
     fontSize:      26,
-    color:         colors.text,
+    color:         colors.textPrimary,
     letterSpacing: 2,
     textAlign:     'center',
   },

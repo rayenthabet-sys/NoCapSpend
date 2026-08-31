@@ -5,8 +5,7 @@ import { colors, fonts, radii, spacing } from '../lib/theme';
 /**
  * StatCard
  *
- * Small dark card showing a label + value pair.
- * Can be used in a row for Income / Expense side-by-side.
+ * Inner stat card with dark secondary background showing a label + value pair.
  *
  * Props:
  *   label     string
@@ -19,7 +18,7 @@ export default function StatCard({ label, value, color, flex = 1, style }) {
   return (
     <View style={[styles.card, { flex }, style]}>
       <Text style={styles.label} numberOfLines={1}>{label}</Text>
-      <Text style={[styles.value, color && { color }]} numberOfLines={1}>
+      <Text style={[styles.value, color ? { color } : undefined]} numberOfLines={1}>
         {value}
       </Text>
     </View>
@@ -36,16 +35,16 @@ const styles = StyleSheet.create({
     alignItems:      'flex-start',
   },
   label: {
-    fontFamily:    fonts.body,
+    fontFamily:    fonts.bodySemiBold,
     fontSize:      10,
     color:         colors.textMuted,
-    letterSpacing: 2,
+    letterSpacing: 1.5,
     marginBottom:  4,
     textTransform: 'uppercase',
   },
   value: {
     fontFamily: fonts.bodyBold,
     fontSize:   18,
-    color:      colors.text,
+    color:      colors.textPrimary,
   },
 });

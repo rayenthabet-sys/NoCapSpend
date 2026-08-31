@@ -5,16 +5,18 @@ import { colors, fonts, spacing } from '../lib/theme';
 /**
  * SectionHeader
  *
- * Section label in uppercase condensed style.
- * Optionally shows a right-side action label.
- *
- * Props:
- *   title       string
- *   action      string   optional right-side text (e.g. "SEE ALL")
- *   onAction    fn       called when action is pressed
- *   style       object
+ * @param {Object} props
+ * @param {string} props.title
+ * @param {string} [props.action]
+ * @param {() => void} [props.onAction]
+ * @param {object} [props.style]
  */
-export default function SectionHeader({ title, action, onAction, style }) {
+export default function SectionHeader({
+  title = '',
+  action = undefined,
+  onAction = undefined,
+  style = undefined,
+} = {}) {
   return (
     <View style={[styles.row, style]}>
       <Text style={styles.title}>{title}</Text>
@@ -33,19 +35,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems:     'center',
     marginBottom:   spacing.sm,
-    marginTop:      spacing.sm,
+    marginTop:      spacing.xs,
   },
   title: {
-    fontFamily:    fonts.bodySemiBold,
-    fontSize:      11,
+    fontFamily:    fonts.display,
+    fontSize:      18,
     color:         colors.textMuted,
-    letterSpacing: 2.5,
+    letterSpacing: 2.0,
     textTransform: 'uppercase',
   },
   action: {
-    fontFamily:    fonts.body,
+    fontFamily:    fonts.bodySemiBold,
     fontSize:      11,
-    color:         colors.textSecondary,
-    letterSpacing: 1,
+    color:         colors.primary,
+    letterSpacing: 1.2,
   },
 });

@@ -1,27 +1,18 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, fonts, radii, spacing, animation } from '../lib/theme';
+import { colors, fonts, radii, spacing } from '../lib/theme';
 
 /**
  * BudgetButton
  *
- * Standardized dark button.
+ * Standardized high-tactility comic-panel button.
  *
  * Variants:
- *   primary   — dark base, white text, red border on press (default)
- *   secondary — dark card bg, gray text, gray border
- *   danger    — red bg, white text
- *   ghost     — transparent bg, gray text, gray border
- *
- * Props:
- *   title       string   button label
- *   onPress     fn
- *   variant     string   "primary" | "secondary" | "danger" | "ghost"
- *   loading     bool     show spinner instead of title
- *   disabled    bool
- *   style       object   container override
- *   textStyle   object   label override
- *   accessibilityLabel  string
+ *   primary   — dark elevated base, gold border, white text
+ *   secondary — dark card bg, muted text, border
+ *   income    — dark base, green border (Bag In)
+ *   danger    — dark base, red border (Bleed / Over-budget)
+ *   ghost     — transparent bg, muted text
  */
 export default function BudgetButton({
   title,
@@ -59,7 +50,7 @@ export default function BudgetButton({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'danger' ? colors.white : colors.textSecondary}
+          color={variant === 'income' ? colors.income : variant === 'danger' ? colors.danger : colors.primary}
         />
       ) : (
         <Text style={labelStyle}>{title}</Text>
@@ -75,19 +66,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     alignItems:      'center',
     justifyContent:  'center',
-    borderWidth:     1,
+    borderWidth:     1.5,
     minHeight:       48,
   },
   // Variants
   primary: {
     backgroundColor: colors.cardElevated,
-    borderColor:     colors.border,
+    borderColor:     colors.primary,
   },
   primaryLabel: {
     fontFamily: fonts.bodySemiBold,
     fontSize:   14,
-    color:      colors.text,
-    letterSpacing: 1,
+    color:      colors.textPrimary,
+    letterSpacing: 1.2,
   },
   secondary: {
     backgroundColor: colors.card,
@@ -99,15 +90,25 @@ const styles = StyleSheet.create({
     color:      colors.textSecondary,
     letterSpacing: 1,
   },
+  income: {
+    backgroundColor: colors.cardElevated,
+    borderColor:     colors.income,
+  },
+  incomeLabel: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize:   14,
+    color:      colors.textPrimary,
+    letterSpacing: 1.2,
+  },
   danger: {
-    backgroundColor: colors.primary,
-    borderColor:     colors.primaryBright,
+    backgroundColor: colors.cardElevated,
+    borderColor:     colors.danger,
   },
   dangerLabel: {
     fontFamily: fonts.bodySemiBold,
     fontSize:   14,
-    color:      colors.white,
-    letterSpacing: 1,
+    color:      colors.danger,
+    letterSpacing: 1.2,
   },
   ghost: {
     backgroundColor: colors.transparent,
@@ -119,11 +120,8 @@ const styles = StyleSheet.create({
     color:      colors.textSecondary,
     letterSpacing: 1,
   },
-  // States
   disabled: {
     opacity: 0.45,
   },
-  label: {
-    // base label — always overridden by variant label
-  },
+  label: {},
 });

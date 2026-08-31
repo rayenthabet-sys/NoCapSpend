@@ -29,7 +29,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#080808",
+          "backgroundColor": "#12120F",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -43,8 +43,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "cbe93f5b-76f4-4fd2-8d55-034b67a90537"
+        "projectId": "ed73caf6-ec45-4f79-b3d3-a2c34abb3c18"
       }
-    }
+    },
+    "owner": "rayen.thabet.04"
   }
 }

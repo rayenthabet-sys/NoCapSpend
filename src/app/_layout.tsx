@@ -18,7 +18,11 @@ if (typeof window !== 'undefined') {
       typeof args[0] === 'string' &&
       (args[0].includes('onPressIn') ||
         args[0].includes('Unknown event handler property') ||
-        args[0].includes('TouchableMixin'))
+        args[0].includes('TouchableMixin') ||
+        // react-native-svg emits kebab-case DOM prop `transform-origin` on web;
+        // React DOM (v19) warns about it. This is internal to WebShape.js and
+        // cannot be fixed in application code — suppress the dev-only noise.
+        args[0].includes('transform-origin'))
     ) {
       return;
     }
@@ -49,15 +53,15 @@ export default function RootLayout() {
 
   if (!fontsLoaded) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#080808' }}>
-        <ActivityIndicator size="large" color="#B00020" />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#12120F' }}>
+        <ActivityIndicator size="large" color="#D4A237" />
       </View>
     );
   }
 
   return (
     <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#12120F' } }} />
     </AuthProvider>
   );
 }

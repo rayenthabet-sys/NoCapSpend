@@ -1,13 +1,14 @@
 import { useState } from 'react';
 import { View, TextInput, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
-import { router } from 'expo-router';
+import { safeBack } from '../lib/nav';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { colors, fonts, radii, spacing } from '../lib/theme';
+import { colors, fonts, radii } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
 
 export default function AddGoal() {
-  const { session } = useAuth();
+  const auth: any = useAuth();
+  const session = auth?.session;
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -36,25 +37,25 @@ export default function AddGoal() {
     if (error) {
       showAlert('Error', error.message);
     } else {
-      router.back();
+      safeBack('/goals');
     }
   }
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>NEW GOAL (Goal)</Text>
+      <Text style={styles.title}>NEW SAVINGS GOAL</Text>
 
       <TextInput
         style={styles.input}
         placeholder="Goal name (e.g. New Laptop)"
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={colors.textMuted}
         value={name}
         onChangeText={setName}
       />
       <TextInput
         style={styles.input}
-        placeholder="Target amount"
-        placeholderTextColor={colors.textSecondary}
+        placeholder="Target amount in DT (e.g. 150.00)"
+        placeholderTextColor={colors.textMuted}
         keyboardType="numeric"
         value={targetAmount}
         onChangeText={setTargetAmount}
@@ -62,7 +63,7 @@ export default function AddGoal() {
       <TextInput
         style={styles.input}
         placeholder="Deadline (YYYY-MM-DD, optional)"
-        placeholderTextColor={colors.textSecondary}
+        placeholderTextColor={colors.textMuted}
         value={deadline}
         onChangeText={setDeadline}
       />
@@ -74,12 +75,12 @@ export default function AddGoal() {
         onPress={saveGoal}
         disabled={loading}
       >
-        <Text style={styles.buttonText}>{loading ? 'SAVING...' : '+ CREATE GOAL (Goal)'}</Text>
+        <Text style={styles.buttonText}>{loading ? 'SAVING...' : '+ CREATE SAVINGS GOAL'}</Text>
       </TouchableOpacity>
 
       <View style={{ height: 10 }} />
 
-      <TouchableOpacity style={[styles.button, styles.ghostButton]} onPress={() => router.back()}>
+      <TouchableOpacity style={[styles.button, styles.ghostButton]} onPress={() => safeBack('/goals')}>
         <Text style={[styles.buttonText, { color: colors.textSecondary }]}>CANCEL</Text>
       </TouchableOpacity>
     </ScrollView>
@@ -89,27 +90,27 @@ export default function AddGoal() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   container: { padding: 24, paddingTop: 60, paddingBottom: 40, maxWidth: 540, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 36, color: colors.text, textAlign: 'center', letterSpacing: 3, marginBottom: 24 },
+  title: { fontFamily: fonts.display, fontSize: 36, color: colors.textPrimary, textAlign: 'center', letterSpacing: 3, marginBottom: 24 },
   input: {
     fontFamily: fonts.body,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.sm,
     padding: 14,
     marginBottom: 14,
-    backgroundColor: colors.card,
-    color: colors.text,
+    backgroundColor: colors.inputBg,
+    color: colors.textPrimary,
     fontSize: 15,
   },
   button: {
     borderRadius: radii.sm,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     minHeight: 48,
     justifyContent: 'center',
   },
   primaryButton: { backgroundColor: colors.cardElevated, borderColor: colors.primary },
   ghostButton: { backgroundColor: colors.card, borderColor: colors.border },
-  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text, letterSpacing: 1.5 },
+  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5 },
 });

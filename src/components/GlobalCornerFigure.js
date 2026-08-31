@@ -1,34 +1,30 @@
 import React, { memo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
-import { globalCornerAssets, characterAspectRatio } from '../lib/characters';
+import { canonicalAssets } from '../lib/characters';
 
 /**
  * GlobalCornerFigure
  *
- * Displays a lightweight (23KB) cropped figure from the global sheet
- * positioned decoratively in corners or card backgrounds.
- * Powered by expo-image with native caching.
- *
- * Props:
- *   view      "front" | "frontAlt" | "side" | "back" (default: "side")
- *   size      number   height in px (default: 60)
- *   opacity   number   opacity between 0 and 1 (default: 0.35)
- *   position  "bottom-right" | "top-right" | "bottom-left" | "inline"
- *   style     object
+ * @param {Object} [props]
+ * @param {string} [props.assetId]
+ * @param {number} [props.size]
+ * @param {number} [props.opacity]
+ * @param {'bottom-right' | 'top-right' | 'bottom-left' | 'inline'} [props.position]
+ * @param {object} [props.style]
  */
 function GlobalCornerFigureComponent({
-  view = 'side',
+  assetId = 'robert_guidance',
   size = 60,
-  opacity = 0.35,
+  opacity = 0.25,
   position = 'bottom-right',
-  style,
-}) {
-  const asset = globalCornerAssets[view] || globalCornerAssets.side;
+  style = undefined,
+} = {}) {
+  const asset = canonicalAssets[assetId] || canonicalAssets.robert_guidance;
   if (!asset) return null;
 
   const height = size;
-  const width = Math.round(height * characterAspectRatio.corner);
+  const width = Math.round(height * (512 / 768));
   const posStyle = positionStyles[position] || positionStyles['bottom-right'];
 
   return (

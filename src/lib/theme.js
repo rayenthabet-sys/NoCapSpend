@@ -1,42 +1,45 @@
 // ─────────────────────────────────────────────────────────────────
-// Budget Buddy — centralized theme
-// 90% dark / 8% white-gray / 2% red accent
+// Budget Buddy — Centralized Design System Theme
+// Boondocks-inspired Urban / Comic Editorial Aesthetic
 // ─────────────────────────────────────────────────────────────────
 
 export const colors = {
-  // Backgrounds
-  background:          '#080808',
-  backgroundSecondary: '#101010',
+  // Backgrounds & Surfaces
+  background:          '#12120F',
+  surface:             '#1A1A14',
+  backgroundSecondary: '#1A1A14',
 
   // Cards
-  card:                '#141414',
-  cardSecondary:       '#1B1B1B',
-  cardElevated:        '#202020',
-  inputBg:             '#141414',
+  card:                '#22221A',
+  cardSecondary:       '#1E1E16',
+  cardElevated:        '#2B2A20',
+  inputBg:             '#1A1A14',
 
-  // Accent — red used sparingly (borders, CTAs, warnings)
-  primary:             '#B00020',
-  primaryBright:       '#D41414',
-  primaryDark:         '#720014',
-  danger:              '#B00020',
-  dangerBright:        '#D41414',
+  // Brand / Gold Accents
+  primary:             '#D4A237',
+  primaryBright:       '#F0BE4B',
+  primaryDark:         '#8C6818',
 
   // Text
-  text:                '#F2F2F2',
-  textSecondary:       '#A0A0A0',
-  textMuted:           '#666666',
+  text:                '#F2EFE9',
+  textPrimary:         '#F2EFE9',
+  textSecondary:       '#BAB6A2',
+  textMuted:           '#787563',
 
-  // Structure
-  border:              '#292929',
-  borderAccent:        '#3A0010',   // very dark red — occasional card accent
-  progressBg:          '#202020',
-  progressFill:        '#B00020',
+  // Structure & Borders
+  border:              '#333226',
+  borderAccent:        '#4A4630',
+  progressBg:          '#22221A',
+  progressFill:        '#D4A237',
 
   // Semantic
-  income:              '#B7E4C7',   // muted green
-  expense:             '#E63946',   // red
-  goals:               '#C9A8E0',   // soft purple
-  warning:             '#E8A838',   // amber
+  income:              '#4E9A51',   // Bag In Green
+  expense:             '#C84C32',   // Bleed Rust Red
+  warning:             '#D98A2B',   // Budget Caution Amber (80-94%)
+  danger:              '#BA2D1D',   // Critical Breach Red (95%+)
+  dangerBright:        '#E03E2D',
+  goals:               '#7E6BB0',   // Locked Bands Purple
+  wealth:              '#C5A059',   // Ed Surplus Gold
 
   // Utilities
   white:               '#FFFFFF',
@@ -44,14 +47,13 @@ export const colors = {
 };
 
 export const fonts = {
-  display:      'BebasNeue_400Regular',      // titles, section headers ONLY
-  body:         'SpaceGrotesk_400Regular',   // all body text
+  display:      'BebasNeue_400Regular',      // titles, section headers, reactions
+  body:         'SpaceGrotesk_400Regular',   // all body text, inputs
   bodySemiBold: 'SpaceGrotesk_600SemiBold',  // labels, button text
   bodyBold:     'SpaceGrotesk_700Bold',      // financial numbers, emphasis
-  mono:         'SpaceGrotesk_700Bold',      // numbers (same as bold)
+  mono:         'SpaceGrotesk_700Bold',      // numbers tabular
 };
 
-// Fallback fonts for when custom fonts haven't loaded yet
 export const fontsFallback = {
   display:      'System',
   body:         'System',
@@ -82,21 +84,28 @@ export const spacing = {
   xxl:  64,
 };
 
-// Reusable screen labels
+// Reusable screen labels (clean financial terminology)
 export const labels = {
   appTitle:          'BUDGET BUDDY',
-  appSubtitle:       'TRACK THE SPREAD',
+  appSubtitle:       'TRACK YOUR FINANCES',
+  totalSavings:      'TOTAL SAVINGS',
   thisMonth:         'THIS MONTH',
+  income:            'INCOME',
+  expense:           'EXPENSES',
+  available:         'AVAILABLE BALANCE',
+  inGoals:           'LOCKED FOR GOALS',
   savingsChart:      'SAVINGS OVER TIME',
-  categoryBreakdown: 'SPENDING SPLIT',
-  categorySection:   'WHERE THE MONEY WENT',
+  categoryBreakdown: 'SPENDING BREAKDOWN',
+  categorySection:   'CATEGORIES',
   goalsTitle:        'SAVINGS GOALS',
-  addGoalTitle:      'NEW GOAL',
+  addGoalTitle:      'NEW SAVINGS GOAL',
+  addExpenseTitle:   'ADD EXPENSE',
+  addIncomeTitle:    'ADD INCOME',
   categoriesTitle:   'CATEGORIES',
-  budgetsTitle:      'CATEGORY BUDGETS',
-  emptyGoals:        'No goals yet. What are we saving for?',
-  emptyCategories:   'No expense categories found.',
-  emptyBudgets:      'No budgets set for this month.',
+  budgetsTitle:      'BUDGET LIMITS',
+  emptyGoals:        'No savings goals yet. What are you saving for?',
+  emptyCategories:   'No categories found.',
+  emptyBudgets:      'No budget limits set for this month.',
 };
 
 // Animation durations in ms
@@ -104,24 +113,24 @@ export const animation = {
   fast:    180,
   normal:  320,
   slow:    500,
-  bob:     1800,   // idle character bob cycle
+  bob:     1800,   // idle character breathing float cycle
 };
 
-// Chart colors — dark theme compliant
+// Chart colors — high-contrast dark theme
 export const chartConfig = {
-  backgroundColor:         '#141414',
-  backgroundGradientFrom:  '#141414',
-  backgroundGradientTo:    '#141414',
+  backgroundColor:         '#22221A',
+  backgroundGradientFrom:  '#22221A',
+  backgroundGradientTo:    '#22221A',
   decimalPlaces:           0,
-  color:    (opacity = 1) => `rgba(210, 20, 20, ${opacity})`,  // red line
-  labelColor:              () => '#A0A0A0',
+  color:    (opacity = 1) => `rgba(212, 162, 55, ${opacity})`,  // Gold line
+  labelColor:              () => '#BAB6A2',
   propsForDots: {
     r:           '4',
-    strokeWidth: '1',
-    stroke:      '#D41414',
+    strokeWidth: '1.5',
+    stroke:      '#F0BE4B',
   },
   propsForBackgroundLines: {
-    stroke: '#292929',
+    stroke: '#333226',
     strokeWidth: 1,
   },
 };

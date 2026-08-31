@@ -4,26 +4,28 @@
 // ─────────────────────────────────────────────────────────────────
 
 /**
- * Format money with slang racks/bands notation if amount >= 100
- * e.g. 1200 -> "$1,200.00 (12 RACKS)"
+ * Format money with racks notation if amount >= 10 DT
+ * e.g. 120 -> "120.00 DT (12 RACKS)"
  */
-export function formatMunyun(amount, options = {}) {
+export function formatBands(amount, options = {}) {
   const num = Number(amount || 0);
   const formatted = Math.abs(num).toFixed(2);
   const sign = num < 0 ? '-' : '';
 
-  if (options.showRacks && Math.abs(num) >= 100) {
-    const racks = (Math.abs(num) / 100).toFixed(1).replace('.0', '');
-    return `${sign}$${formatted} (${racks} ${Number(racks) === 1 ? 'RACK' : 'RACKS'})`;
+  if (options.showRacks && Math.abs(num) >= 10) {
+    const racks = (Math.abs(num) / 10).toFixed(1).replace('.0', '');
+    return `${sign}${formatted} DT (${racks} ${Number(racks) === 1 ? 'RACK' : 'RACKS'})`;
   }
 
-  return `${sign}$${formatted}`;
+  return `${sign}${formatted} DT`;
 }
+
+export const formatMunyun = formatBands;
 
 export function getRacksOnly(amount) {
   const num = Math.abs(Number(amount || 0));
-  if (num < 100) return null;
-  const racks = (num / 100).toFixed(1).replace('.0', '');
+  if (num < 10) return null;
+  const racks = (num / 10).toFixed(1).replace('.0', '');
   return `${racks} ${Number(racks) === 1 ? 'RACK' : 'RACKS'}`;
 }
 

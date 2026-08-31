@@ -1,56 +1,115 @@
-# Welcome to your Expo app 👋
+# NoCapSpend 💰
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A modern, character-driven personal finance and budget planning mobile application built with **React Native**, **Expo SDK 52**, and **Supabase**.
 
-## Get started
+NoCapSpend turns daily financial tracking into an engaging, disciplined habit using real-time character reactions, daily spending limits with automated locks, category budget management, dedicated savings goals, and visual trend analytics.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## ✨ Key Features
 
-2. Start the app
+### 🎭 Character-Driven UX Engine (P0–P7 Resolver)
+An intelligent presentation engine evaluates your financial health in real time, triggering animated reactions from a stylized character cast:
+- **Robert Freeman (Host / Baseline)**: Keeps you grounded with steady financial guidance.
+- **Uncle Ruckus (Emergency & Alarm)**: Alerts you loudly when budgets exceed 95% or breach 100%.
+- **Stinkmeaner (High-Spends)**: Roasts any expense strictly greater than **25 DT**.
+- **Riley Freeman (Light Spends)**: Reacts to everyday discretionary purchases (≤ 25 DT).
+- **A Pimp Named Slickback (Income Recorded)**: Celebrates new cash flow and big earnings.
+- **Jazmine Dubois (Savings Goals)**: Cheers you on as you reach savings goal milestones.
+- **Tom Dubois (Caution Warning)**: Warns you as monthly or daily spending reaches 80%–94%.
+- **Ed Wuncler III (Wealth State)**: Unlocked when accumulated available balance is high.
+- **Huey Freeman (Analytics)**: Hosts the analytics and trends dashboard.
 
-   ```bash
-   npx expo start
-   ```
+---
 
-In the output, you'll find options to open the app in a
+### 📊 Daily Spending Meter & Expense Lock
+- **Visual Daily Progress**: Tracks today's spending vs. your daily budget with color-coded states (Normal, Caution 80%, Critical 95%, Exceeded 100%).
+- **Automated Midnight Reset**: Date-based queries automatically refresh daily totals at midnight without deleting transaction history.
+- **Daily Expense Lock**: Optional safety setting that blocks new expenses once today's spending limit is reached. Income logging remains unrestricted.
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+---
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 🎯 Savings Goals
+- Create targeted goals with deadlines.
+- Funds contributed to goals are locked from your **Available Balance** to prevent accidental overspending.
+- Interactive detail view with progress indicators, contribution, and withdrawal options.
 
-## Get a fresh project
+---
 
-When you're ready, run:
+### 📁 Category Budgets & Rollover
+- Custom expense categories (Food, Transportation, Studio, Utilities, etc.).
+- Set monthly budget limits per category with customizable rollover modes:
+  - **Reset**: Starts fresh each month.
+  - **Rollover**: Unspent budget rolls over to the next month.
+  - **Save Diff**: Unspent difference automatically reserves to total savings.
 
+---
+
+### 📈 Analytics & Trends
+- **Savings Over Time**: Interactive line chart showing cumulative savings trends across months.
+- **Category Breakdown**: Dynamic pie chart displaying where funds were spent.
+- **Key Metrics**: Savings rate, highest expenditure sector, and monthly net flow.
+
+---
+
+### 🔄 Recurring Transactions & Automation
+- Monthly recurring income and expenses auto-generate on the first of each month upon app launch.
+
+---
+
+## 🛠️ Tech Stack
+
+- **Framework**: [React Native](https://reactnative.dev/) (0.86) with [Expo](https://expo.dev/) (SDK 52) & [Expo Router v4](https://docs.expo.dev/router/introduction/)
+- **Backend & Database**: [Supabase](https://supabase.com/) (PostgreSQL with Row Level Security & Auth)
+- **Local Storage**: `@react-native-async-storage/async-storage` for device-local settings
+- **Charts & Visualization**: `react-native-chart-kit` and `react-native-svg`
+- **Compiler & Runtime**: React Compiler enabled with Hermes engine
+- **Typography & Theme**: Google Fonts (`Space Grotesk` & `Bebas Neue`) in sleek dark-mode palette
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the Repository
 ```bash
-npm run reset-project
+git clone https://github.com/rayenthabet004-spec/NoCapSpend.git
+cd NoCapSpend
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-### Other setup steps
+### 3. Configure Environment Variables
+Create a `.env` file in the project root:
+```env
+EXPO_PUBLIC_SUPABASE_URL=your_supabase_project_url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+### 4. Start the Development Server
+```bash
+npx expo start
+```
+- Press `w` to open in web browser.
+- Press `a` for Android emulator or scan QR code with Expo Go.
 
-## Learn more
+---
 
-To learn more about developing your project with Expo, look at the following resources:
+## 📦 Building for Production
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Android Standalone APK (Preview / Testing)
+```bash
+npx eas-cli build -p android --profile preview
+```
 
-## Join the community
+### Android App Bundle (Google Play Store)
+```bash
+npx eas-cli build -p android --profile production
+```
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 📄 License
+This project is for personal / portfolio use. All rights reserved.

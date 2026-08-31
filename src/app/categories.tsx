@@ -1,15 +1,17 @@
 import { useState, useCallback } from 'react';
 import { View, Text, TextInput, FlatList, StyleSheet, TouchableOpacity } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
+import { safeBack } from '../lib/nav';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/AuthContext';
-import { colors, fonts, radii, spacing } from '../lib/theme';
+import { colors, fonts, radii } from '../lib/theme';
 import { showAlert } from '../lib/dialog';
 import BudgetCharacter from '../components/BudgetCharacter';
 
 export default function Categories() {
-  const { session } = useAuth();
-  const [categories, setCategories] = useState([]);
+  const auth: any = useAuth();
+  const session = auth?.session;
+  const [categories, setCategories] = useState<any[]>([]);
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -32,7 +34,7 @@ export default function Categories() {
 
   async function addCategory() {
     if (!name.trim()) {
-      showAlert('Missing name', 'Enter a sector name.');
+      showAlert('Missing name', 'Enter a category name.');
       return;
     }
     setSaving(true);
@@ -50,8 +52,8 @@ export default function Categories() {
     }
   }
 
-  function confirmDelete(category) {
-    showAlert('Delete Sector', `Delete "${category.name}"? Expenses already using it will keep their history, just show no sector.`, [
+  function confirmDelete(category: any) {
+    showAlert('Delete Category', `Delete "${category.name}"? Expenses already using it will keep their history, just show no category.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -66,12 +68,12 @@ export default function Categories() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>DRAIN SECTORS (Categories)</Text>
+      <Text style={styles.title}>CATEGORIES</Text>
 
       <FlatList
         data={categories}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+        keyExtractor={(item: any) => item.id}
+        renderItem={({ item }: any) => (
           <TouchableOpacity style={styles.categoryRow} onPress={() => confirmDelete(item)}>
             <Text style={styles.categoryName}>{item.name}</Text>
             <Text style={styles.deleteHint}>tap to delete</Text>
@@ -79,8 +81,8 @@ export default function Categories() {
         )}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <BudgetCharacter character="master" size="small" animated />
-            <Text style={styles.emptyTitle}>NO DRAIN SECTORS YET.</Text>
+            <BudgetCharacter assetId="robert_neutral" size="small" animated />
+            <Text style={styles.emptyTitle}>NO CATEGORIES YET.</Text>
             <Text style={styles.emptyText}>Add your first spending category below.</Text>
           </View>
         }
@@ -90,8 +92,8 @@ export default function Categories() {
 
       <TextInput
         style={styles.input}
-        placeholder="New sector name (e.g. Food, Travel, Studio)"
-        placeholderTextColor={colors.textSecondary}
+        placeholder="New category (e.g. Food, Travel, Studio)"
+        placeholderTextColor={colors.textMuted}
         value={name}
         onChangeText={setName}
       />
@@ -100,10 +102,10 @@ export default function Categories() {
         onPress={addCategory}
         disabled={saving}
       >
-        <Text style={styles.buttonText}>{saving ? 'ADDING...' : '+ ADD SECTOR (Category)'}</Text>
+        <Text style={styles.buttonText}>{saving ? 'ADDING...' : '+ ADD CATEGORY'}</Text>
       </TouchableOpacity>
       <View style={{ height: 10 }} />
-      <TouchableOpacity style={[styles.button, styles.ghostButton]} onPress={() => router.back()}>
+      <TouchableOpacity style={[styles.button, styles.ghostButton]} onPress={() => safeBack('/')}>
         <Text style={[styles.buttonText, { color: colors.textSecondary }]}>BACK</Text>
       </TouchableOpacity>
     </View>
@@ -112,7 +114,7 @@ export default function Categories() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: 24, paddingTop: 60, paddingBottom: 40, backgroundColor: colors.background, maxWidth: 580, alignSelf: 'center', width: '100%' },
-  title: { fontFamily: fonts.display, fontSize: 32, color: colors.text, textAlign: 'center', marginBottom: 20, letterSpacing: 2.5 },
+  title: { fontFamily: fonts.display, fontSize: 32, color: colors.textPrimary, textAlign: 'center', marginBottom: 20, letterSpacing: 2.5 },
   categoryRow: {
     backgroundColor: colors.card,
     borderRadius: radii.sm,
@@ -121,35 +123,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
   },
-  categoryName: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.text },
+  categoryName: { fontFamily: fonts.bodyBold, fontSize: 15, color: colors.textPrimary },
   deleteHint: { fontFamily: fonts.body, fontSize: 11, color: colors.textMuted },
   emptyState: { alignItems: 'center', marginTop: 30 },
-  emptyTitle: { fontFamily: fonts.display, fontSize: 22, color: colors.text, marginTop: 12, letterSpacing: 2 },
+  emptyTitle: { fontFamily: fonts.display, fontSize: 22, color: colors.textPrimary, marginTop: 12, letterSpacing: 2 },
   emptyText: { fontFamily: fonts.body, color: colors.textSecondary, marginTop: 6, textAlign: 'center' },
   input: {
     fontFamily: fonts.body,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: radii.sm,
     padding: 14,
     marginTop: 8,
     marginBottom: 14,
-    backgroundColor: colors.card,
-    color: colors.text,
+    backgroundColor: colors.inputBg,
+    color: colors.textPrimary,
     fontSize: 15,
   },
   button: {
     borderRadius: radii.sm,
     paddingVertical: 14,
     alignItems: 'center',
-    borderWidth: 1,
+    borderWidth: 1.5,
     minHeight: 48,
     justifyContent: 'center',
   },
   primaryButton: { backgroundColor: colors.cardElevated, borderColor: colors.primary },
   ghostButton: { backgroundColor: colors.card, borderColor: colors.border },
-  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.text, letterSpacing: 1.5 },
+  buttonText: { fontFamily: fonts.bodySemiBold, fontSize: 14, color: colors.textPrimary, letterSpacing: 1.5 },
 });
