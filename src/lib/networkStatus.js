@@ -26,6 +26,21 @@ const POLL_INTERVAL_MS = 10000; // 10s polling
  * Uses a no-cache HEAD/GET request to a lightweight public URL.
  */
 async function probeConnectivity() {
+  // ── Web guard ────────────────────────────────────────────────────
+  // On Web, a cross-origin HEAD to google.com/generate_204 is always
+  // blocked by CORS (Google does not send Access-Control-Allow-Origin).
+  // The resulting network error is indistinguishable from genuine
+  // offline inside catch{}, causing a false offline state in browsers.
+  //
+  // navigator.onLine reflects the browser/NIC's actual connectivity
+  // status and is not subject to CORS restrictions.  It is accurate
+  // enough for the login-gate check; real Supabase failures are then
+  // surfaced through the normal auth error path.
+  if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+    return navigator.onLine;
+  }
+
+  // ── Native (Android / iOS) — unchanged ──────────────────────────
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);

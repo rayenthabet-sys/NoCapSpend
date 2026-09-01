@@ -16,6 +16,7 @@ export default function BudgetCard({
   accent = false,
   warning = false,
   danger = false,
+  glow = false,
   style = undefined,
   children = null,
 } = {}) {
@@ -26,6 +27,7 @@ export default function BudgetCard({
         accent && styles.cardAccent,
         warning && styles.cardWarning,
         danger && styles.cardDanger,
+        glow && styles.cardGlow,
         style,
       ]}
     >
@@ -56,5 +58,13 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3.5,
     borderLeftColor: colors.danger,
     borderColor:     colors.danger,
+  },
+  // Subtle gold glow for healthy savings hero card (static, no animation)
+  cardGlow: {
+    shadowColor:   colors.primary,
+    shadowOpacity: 0.18,
+    shadowRadius:  12,
+    shadowOffset:  { width: 0, height: 2 },
+    elevation:     6,
   },
 });

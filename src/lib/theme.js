@@ -41,6 +41,12 @@ export const colors = {
   goals:               '#7E6BB0',   // Locked Bands Purple
   wealth:              '#C5A059',   // Ed Surplus Gold
 
+  // Tinted card surfaces (income/expense cards)
+  incomeCard:          '#0D180F',   // Very dark green tint
+  expenseCard:         '#190D0D',   // Very dark red tint
+  incomeBorder:        '#1D3B21',   // Subtle green border
+  expenseBorder:       '#3B1D1D',   // Subtle red border
+
   // Utilities
   white:               '#FFFFFF',
   transparent:         'transparent',
