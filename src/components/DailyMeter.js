@@ -37,6 +37,7 @@ function barColor(state) {
  * @param {boolean}       props.loading            — show skeleton while data loads
  * @param {string}        [props.characterAssetId] — asset key to display as avatar
  * @param {string}        [props.characterLabel]   — state label below avatar (e.g. "CAUTION")
+ * @param {Object|null}   [props.carryoverInfo]    — informational monthly carryover balance
  */
 export default function DailyMeter({
   dailySpent        = 0,
@@ -45,9 +46,11 @@ export default function DailyMeter({
   loading           = false,
   characterAssetId  = 'robert_neutral',
   characterLabel    = '',
+  carryoverInfo     = null,
 }) {
   const status = getDailyStatus(dailySpent, dailyBudget);
   const { ratio, pct, state, remaining } = status;
+  const overAmount = dailyBudget ? Math.max(0, dailySpent - dailyBudget) : 0;
 
   const barPct   = dailyBudget ? Math.min(ratio * 100, 100) : 0;
   const fillColor = barColor(state);
@@ -79,7 +82,7 @@ export default function DailyMeter({
           <View style={styles.rightCol}>
             <CharacterAvatar
               assetId={characterAssetId}
-              size={60}
+              size={84}
               borderColor={colors.primary}
             />
             {!!characterLabel && (
@@ -142,13 +145,39 @@ export default function DailyMeter({
 
           {/* Status text */}
           {state === 'exceeded' ? (
-            <Text style={styles.exceededText}>⛔ LIMIT EXCEEDED  ({pct}%)</Text>
+            <Text style={styles.exceededText}>⛔ LIMIT EXCEEDED  (+{overAmount.toFixed(2)} DT)</Text>
           ) : state === 'critical' ? (
-            <Text style={styles.criticalText}>APPROACHING LIMIT — {remaining.toFixed(2)} DT left</Text>
+            <Text style={styles.criticalText}>APPROACHING LIMIT : {remaining.toFixed(2)} DT left</Text>
           ) : state === 'caution' ? (
-            <Text style={styles.cautionText}>⚡ {pct}% USED  —  {remaining.toFixed(2)} DT left</Text>
+            <Text style={styles.cautionText}>⚡ CAUTION : {remaining.toFixed(2)} DT left</Text>
           ) : (
             <Text style={styles.normalText}>{remaining.toFixed(2)} DT remaining</Text>
+          )}
+
+          {/* Informational Month Balance Carryover Pill */}
+          {!!carryoverInfo && (
+            <View style={styles.carryoverRow}>
+              <Text style={styles.carryoverTitle}>MONTH BALANCE:</Text>
+              <View
+                style={[
+                  styles.carryoverPill,
+                  carryoverInfo.type === 'shortfall' && styles.carryoverShortfall,
+                  carryoverInfo.type === 'surplus' && styles.carryoverSurplus,
+                  carryoverInfo.type === 'target' && styles.carryoverTarget,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.carryoverPillText,
+                    carryoverInfo.type === 'shortfall' && styles.carryoverShortfallText,
+                    carryoverInfo.type === 'surplus' && styles.carryoverSurplusText,
+                    carryoverInfo.type === 'target' && styles.carryoverTargetText,
+                  ]}
+                >
+                  {carryoverInfo.label}
+                </Text>
+              </View>
+            </View>
           )}
 
           {/* Lock badge */}
@@ -161,7 +190,7 @@ export default function DailyMeter({
         <View style={styles.rightCol}>
           <CharacterAvatar
             assetId={characterAssetId}
-            size={64}
+            size={84}
             borderColor={avatarBorderColor}
           />
           {!!characterLabel && (
@@ -292,6 +321,52 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop:     6,
     flexWrap:      'wrap',
+  },
+
+  // Informational Month Carryover Balance
+  carryoverRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           6,
+    marginTop:     8,
+  },
+  carryoverTitle: {
+    fontFamily:    fonts.bodySemiBold,
+    fontSize:      9,
+    color:         colors.textMuted,
+    letterSpacing: 0.8,
+  },
+  carryoverPill: {
+    paddingHorizontal: 6,
+    paddingVertical:   2,
+    borderRadius:      radii.xs,
+    borderWidth:       1,
+  },
+  carryoverShortfall: {
+    backgroundColor: '#2A1414',
+    borderColor:     colors.danger,
+  },
+  carryoverShortfallText: {
+    color: colors.danger,
+  },
+  carryoverSurplus: {
+    backgroundColor: '#142A16',
+    borderColor:     colors.income,
+  },
+  carryoverSurplusText: {
+    color: colors.income,
+  },
+  carryoverTarget: {
+    backgroundColor: colors.surface,
+    borderColor:     colors.primary,
+  },
+  carryoverTargetText: {
+    color: colors.primaryBright,
+  },
+  carryoverPillText: {
+    fontFamily:    fonts.bodyBold,
+    fontSize:      9,
+    letterSpacing: 0.5,
   },
 
   // Character label below avatar

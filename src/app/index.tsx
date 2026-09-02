@@ -4,6 +4,7 @@ import {
   View, ActivityIndicator, Text, StyleSheet, ScrollView,
   TouchableOpacity, Animated,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useAuth } from '../lib/AuthContext';
 import { supabase } from '../lib/supabase';
 import { recalculateCurrentMonthLedger, getTotalReservedForGoals } from '../lib/savings';
@@ -11,7 +12,14 @@ import { ensureRecurringEntriesForThisMonth } from '../lib/recurring';
 import { colors, fonts, radii, spacing } from '../lib/theme';
 import { resolveCharacterState } from '../lib/characterEngine';
 import { getRacksOnly } from '../lib/slang';
-import { getDailyBudget, getDailyLockEnabled, getTodaySpending, getDailyStatus, getTodayDateString } from '../lib/dailyBudget';
+import {
+  getDailyBudget,
+  getDailyLockEnabled,
+  getTodaySpending,
+  getDailyStatus,
+  getTodayDateString,
+  getMonthlyDailyCarryover,
+} from '../lib/dailyBudget';
 import { useNetworkStatus } from '../lib/networkStatus';
 import {
   cacheWrite,
@@ -84,6 +92,7 @@ export default function Home() {
   const [dailyBudget,      setDailyBudget]      = useState<number | null>(null);
   const [dailyLockEnabled, setDailyLockEnabled] = useState(false);
   const [dailyLoading,     setDailyLoading]     = useState(true);
+  const [dailyCarryover,   setDailyCarryover]   = useState<{ balance: number; label: string; type: 'shortfall' | 'surplus' | 'target' } | null>(null);
 
   // ── Navigation Drawer state ──────────────────────────────────────
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -227,6 +236,14 @@ export default function Home() {
         spent = await getOfflineTodaySpending(session.user.id);
       }
       setDailySpent(spent);
+
+      // Load informational month balance carryover
+      if (budget && budget > 0) {
+        const carryover = await getMonthlyDailyCarryover(session.user.id, budget);
+        setDailyCarryover(carryover);
+      } else {
+        setDailyCarryover(null);
+      }
     } catch (_) { /* non-critical */ }
     finally { setDailyLoading(false); }
   }, [session, isOnline]);
@@ -348,9 +365,13 @@ export default function Home() {
             style={styles.headerRight}
             onPress={handleLogout}
             accessibilityLabel="Log out"
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
           >
-            <Text style={styles.headerIcon}>⏻</Text>
+            <Image
+              source={require('../../assets/images/logout_icon.png')}
+              style={styles.logoutIcon}
+              contentFit="contain"
+            />
           </TouchableOpacity>
         </View>
 
@@ -362,6 +383,7 @@ export default function Home() {
           loading={dailyLoading}
           characterAssetId={characterState.assetId}
           characterLabel={characterLabel}
+          carryoverInfo={dailyCarryover}
         />
 
         {/* ── INCOME / EXPENSES CARDS ───────────────────────── */}
@@ -586,12 +608,13 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   headerRight: {
-    width:      36,
-    alignItems: 'flex-end',
+    width:          36,
+    alignItems:     'flex-end',
+    justifyContent: 'center',
   },
-  headerIcon: {
-    fontSize: 18,
-    color:    colors.textMuted,
+  logoutIcon: {
+    width:  37,
+    height: 37,
   },
 
   // ── Income / Expense Cards ────────────────────────────────────

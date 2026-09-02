@@ -8,7 +8,7 @@
 // ─────────────────────────────────────────────────────────────────
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStartOfWeekDateString, getOffsetWeekStartDateString, getAllUserCheckins } from './grindCheckins';
+import { getStartOfWeekDateString, getOffsetWeekStartDateString, getAllUserCheckins, formatLocalDate } from './grindCheckins';
 import { getGrindGoals, updateGrindGoal } from './grindStore';
 import { getWeekHistory } from './grindWeek';
 import { calculateGoalProgress } from './grindStreaks';
@@ -87,9 +87,35 @@ export async function evaluateAndDetectCourtCases(userId) {
     getCourtCasesRaw(userId),
   ]);
 
-  const activeGoals = goals.filter((g) => !g.isArchived);
+  const activeGoals = goals.filter((g) => !g.isArchived && !g.isPaused && !g.isCompleted);
+  const now = new Date().toISOString();
+  let updatedCases = [...existingCases];
+
+  // Gracefully close open cases if the goal was paused, completed, or archived
+  let hasCaseMutated = false;
+  for (let i = 0; i < updatedCases.length; i++) {
+    const c = updatedCases[i];
+    if (c.status === 'open') {
+      const g = goals.find((item) => item.id === c.goalId);
+      if (!g || g.isArchived || g.isPaused || g.isCompleted) {
+        updatedCases[i] = {
+          ...c,
+          status: 'resolved',
+          diagnosis: g?.isPaused ? 'GOAL_PAUSED' : 'GOAL_ARCHIVED',
+          actionTaken: g?.isPaused ? 'Case closed (goal paused by user)' : 'Case closed (goal archived by user)',
+          resolvedAt: now,
+        };
+        hasCaseMutated = true;
+      }
+    }
+  }
+
+  if (hasCaseMutated) {
+    await setCourtCasesRaw(userId, updatedCases);
+  }
+
   if (activeGoals.length === 0 || weekHistory.length === 0) {
-    return existingCases.filter((c) => c.status === 'open');
+    return updatedCases.filter((c) => c.status === 'open');
   }
 
   // Sort locked weeks oldest to newest
@@ -98,12 +124,10 @@ export async function evaluateAndDetectCourtCases(userId) {
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
 
   if (lockedWeeks.length < 2) {
-    return existingCases.filter((c) => c.status === 'open');
+    return updatedCases.filter((c) => c.status === 'open');
   }
 
-  const updatedCases = [...existingCases];
-  const now = new Date().toISOString();
-  let caseCount = existingCases.length;
+  let caseCount = updatedCases.length;
 
   for (const goal of activeGoals) {
     // Check if there is already an open case for this goal
@@ -118,7 +142,7 @@ export async function evaluateAndDetectCourtCases(userId) {
         const startD = new Date(w.weekStart + 'T00:00:00');
         const endD = new Date(startD);
         endD.setDate(endD.getDate() + 6);
-        const endStr = endD.toISOString().slice(0, 10);
+        const endStr = formatLocalDate(endD);
         const chks = allCheckins.filter((c) => c.goal_id === goal.id && c.checkin_date >= w.weekStart && c.checkin_date <= endStr);
         const progress = calculateGoalProgress(goal, chks, commitment);
         goalCommittedWeeks.push({

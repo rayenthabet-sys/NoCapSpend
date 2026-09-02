@@ -23,6 +23,7 @@ import {
   lockCurrentWeek,
   renegotiateCommitment,
 } from '../../lib/grindWeek';
+import { getTopInsight } from '../../lib/grindInsights';
 import {
   calculateWeeklyProgress,
   calculateGoalProgress,
@@ -42,6 +43,7 @@ export default function GrindWeekScreen() {
   const [goals, setGoals] = useState<any[]>([]);
   const [weekIntention, setWeekIntention] = useState<any>(null);
   const [weekCheckins, setWeekCheckins] = useState<any[]>([]);
+  const [topInsight, setTopInsight] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   // Planning mode selection state
@@ -57,16 +59,22 @@ export default function GrindWeekScreen() {
     if (!session) return;
     setLoading(true);
     try {
-      const [allGoals, intention, checkins]: [any, any, any] = await Promise.all([
+      const [allGoals, intention, checkins, insight]: [any, any, any, any] = await Promise.all([
         getGrindGoals(session.user.id),
         getWeekIntention(session.user.id, currentWeekStartStr),
         getWeekCheckins(session.user.id, currentWeekStartStr),
+        getTopInsight(session.user.id),
       ]);
 
-      const active = allGoals.filter((g: any) => !g.isArchived);
-      setGoals(active);
+      const active = allGoals.filter((g: any) => !g.isArchived && !g.isPaused && !g.isCompleted);
+      const displayGoals = intention?.locked
+        ? allGoals.filter((g: any) => intention.commitments?.some((c: any) => c.goalId === g.id))
+        : active;
+
+      setGoals(displayGoals);
       setWeekIntention(intention);
       setWeekCheckins(checkins);
+      setTopInsight(insight);
 
       // Initialize planning selections if week is not locked
       if (!intention || !intention.locked) {
@@ -445,6 +453,16 @@ export default function GrindWeekScreen() {
                 );
               })}
             </View>
+
+            {/* Optional Evidence-based Guidance if selecting high load */}
+            {topInsight && Object.values(selectedGoalIds).filter(Boolean).length > 3 && (topInsight.id === 'COMMITMENT_LOAD' || topInsight.id === 'SWEET_SPOT') && (
+              <View style={styles.guidanceBox}>
+                <Text style={styles.guidanceTag}>💡 HISTORICAL PATTERN</Text>
+                <Text style={styles.guidanceText}>
+                  {topInsight.description} You currently have {Object.values(selectedGoalIds).filter(Boolean).length} goals selected.
+                </Text>
+              </View>
+            )}
 
             <View style={{ height: 16 }} />
 
@@ -881,6 +899,27 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textMuted,
     marginLeft: 26,
+  },
+  guidanceBox: {
+    backgroundColor: colors.surface,
+    borderColor: colors.borderAccent,
+    borderWidth: 1,
+    borderRadius: radii.sm,
+    padding: 12,
+    marginTop: 10,
+  },
+  guidanceTag: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: colors.warning,
+    letterSpacing: 1,
+    marginBottom: 2,
+  },
+  guidanceText: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.textSecondary,
+    lineHeight: 16,
   },
   lockInActionBtn: {
     backgroundColor: colors.cardElevated,

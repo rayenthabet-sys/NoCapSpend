@@ -72,11 +72,11 @@ export const CHARACTER_ASPECT_RATIO = 512 / 768;
 
 // ── Standard Size Presets (Rendered height in px) ──
 export const characterSizes = {
-  micro:  60,
-  small:  90,
-  medium: 150,
-  large:  210,
-  hero:   260,
+  micro:  75,
+  small:  110,
+  medium: 175,
+  large:  240,
+  hero:   300,
 };
 
 // Backward-compatible fallback getter

@@ -58,6 +58,34 @@ export async function getGrindGoalById(userId, goalId) {
   return goals.find((g) => g.id === goalId) || null;
 }
 
+export const GOAL_LIFECYCLE_STATES = {
+  ACTIVE: 'ACTIVE',
+  PAUSED: 'PAUSED',
+  COMPLETED: 'COMPLETED',
+  ARCHIVED: 'ARCHIVED',
+};
+
+export const PAUSE_REASONS = {
+  TEMPORARILY_BUSY: 'TEMPORARILY BUSY',
+  SCHEDULE_CHANGED: 'SCHEDULE CHANGED',
+  PRIORITY_CHANGED: 'PRIORITY CHANGED',
+  TAKING_A_BREAK: 'TAKING A BREAK',
+  OTHER: 'OTHER',
+};
+
+/**
+ * Derive the single authoritative lifecycle state of a Grind goal.
+ * @param {Object} goal
+ * @returns {'ACTIVE'|'PAUSED'|'COMPLETED'|'ARCHIVED'}
+ */
+export function getGoalLifecycleState(goal) {
+  if (!goal) return GOAL_LIFECYCLE_STATES.ACTIVE;
+  if (goal.isArchived) return GOAL_LIFECYCLE_STATES.ARCHIVED;
+  if (goal.isCompleted) return GOAL_LIFECYCLE_STATES.COMPLETED;
+  if (goal.isPaused) return GOAL_LIFECYCLE_STATES.PAUSED;
+  return GOAL_LIFECYCLE_STATES.ACTIVE;
+}
+
 /**
  * Save a new Grind goal.
  * @param {string} userId
@@ -83,6 +111,11 @@ export async function saveGrindGoal(userId, goalData) {
     category: (goalData.category || 'General').trim(),
     isFinancialRule: Boolean(goalData.isFinancialRule),
     isArchived: Boolean(goalData.isArchived),
+    isPaused: Boolean(goalData.isPaused),
+    pausedAt: goalData.pausedAt || null,
+    pauseReason: goalData.pauseReason || null,
+    isCompleted: Boolean(goalData.isCompleted),
+    completedAt: goalData.completedAt || null,
     sortOrder: parseInt(goalData.sortOrder, 10) || 0,
     createdAt: goalData.createdAt || now,
     updatedAt: now,
@@ -131,6 +164,51 @@ export async function updateGrindGoal(userId, goalId, updates) {
 }
 
 /**
+ * Pause an active Grind goal.
+ * @param {string} userId
+ * @param {string} goalId
+ * @param {string} [reason]
+ * @returns {Promise<Object|null>}
+ */
+export async function pauseGrindGoal(userId, goalId, reason = 'TAKING A BREAK') {
+  const now = new Date().toISOString();
+  return updateGrindGoal(userId, goalId, {
+    isPaused: true,
+    pausedAt: now,
+    pauseReason: (reason || 'TAKING A BREAK').trim(),
+  });
+}
+
+/**
+ * Resume a paused Grind goal back to active state.
+ * @param {string} userId
+ * @param {string} goalId
+ * @returns {Promise<Object|null>}
+ */
+export async function resumeGrindGoal(userId, goalId) {
+  return updateGrindGoal(userId, goalId, {
+    isPaused: false,
+    pausedAt: null,
+    pauseReason: null,
+  });
+}
+
+/**
+ * Mark a finite or one-time Grind goal as completed.
+ * @param {string} userId
+ * @param {string} goalId
+ * @returns {Promise<Object|null>}
+ */
+export async function completeGrindGoal(userId, goalId) {
+  const now = new Date().toISOString();
+  return updateGrindGoal(userId, goalId, {
+    isCompleted: true,
+    completedAt: now,
+    isPaused: false,
+  });
+}
+
+/**
  * Archive or unarchive a Grind goal.
  * @param {string} userId
  * @param {string} goalId
@@ -139,6 +217,19 @@ export async function updateGrindGoal(userId, goalId, updates) {
  */
 export async function archiveGrindGoal(userId, goalId, isArchived = true) {
   return updateGrindGoal(userId, goalId, { isArchived });
+}
+
+/**
+ * Restore an archived goal back to active state.
+ * @param {string} userId
+ * @param {string} goalId
+ * @returns {Promise<Object|null>}
+ */
+export async function restoreGrindGoal(userId, goalId) {
+  return updateGrindGoal(userId, goalId, {
+    isArchived: false,
+    isPaused: false,
+  });
 }
 
 /**
@@ -171,3 +262,4 @@ export async function clearGrindGoals(userId) {
     console.warn('[grindStore] clearGrindGoals failed', err);
   }
 }
+

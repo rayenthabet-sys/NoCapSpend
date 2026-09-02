@@ -42,6 +42,7 @@ interface WeeklyReviewModalProps {
   weekLabel?: string;
   newAchievement?: any;
   hasCourtPattern?: boolean;
+  topInsight?: any;
 }
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -55,6 +56,7 @@ export default function WeeklyReviewModal({
   weekLabel = 'THIS WEEK',
   newAchievement,
   hasCourtPattern = false,
+  topInsight,
 }: WeeklyReviewModalProps) {
   if (!visible) return null;
 
@@ -211,6 +213,22 @@ export default function WeeklyReviewModal({
                   A repeated failure or renegotiation pattern has opened a Character Court case.
                 </Text>
                 <Text style={styles.courtNoticeLink}>ENTER CHARACTER COURT →</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* ── BEHAVIORAL INSIGHT PREVIEW (IF AVAILABLE) ── */}
+            {topInsight && (
+              <TouchableOpacity
+                style={styles.insightNoticeBox}
+                onPress={() => {
+                  onClose();
+                  router.push('/grind/insights' as any);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.insightNoticeTag}>📈 BEHAVIORAL PATTERN</Text>
+                <Text style={styles.insightNoticeTitle}>{topInsight.title}</Text>
+                <Text style={styles.insightNoticeLink}>VIEW INTELLIGENCE REPORT →</Text>
               </TouchableOpacity>
             )}
 
@@ -513,6 +531,35 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodyBold,
     fontSize: 10,
     color: colors.warning,
+    letterSpacing: 0.5,
+  },
+  insightNoticeBox: {
+    backgroundColor: colors.surface,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+    borderRadius: radii.sm,
+    padding: 12,
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  insightNoticeTag: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 9,
+    color: colors.primaryBright,
+    letterSpacing: 1,
+    marginBottom: 3,
+  },
+  insightNoticeTitle: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  insightNoticeLink: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    color: colors.primary,
     letterSpacing: 0.5,
   },
   reflectionActionBtn: {

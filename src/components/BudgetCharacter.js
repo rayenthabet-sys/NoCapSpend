@@ -103,12 +103,31 @@ function BudgetCharacterComponent({
   const shakeX = useRef(new Animated.Value(0)).current;
   const scaleV = useRef(new Animated.Value(1)).current;
 
-  // ── Idle bob animation ────────────────────────────────────────────
+  const isRuckus = assetId?.startsWith('ruckus');
+
+  // ── Idle bob / Ruckus agitation animation ─────────────────────────
   useEffect(() => {
     if (!enableAnimation || reduceMotion || animationType === 'webp') {
       bobY.setValue(0);
       return;
     }
+
+    if (isRuckus) {
+      bobY.setValue(0);
+      // Ruckus frantic agitation in place instead of bobbing up and down
+      const agitateLoop = Animated.loop(
+        Animated.sequence([
+          Animated.timing(shakeX, { toValue: 3,  duration: 40, useNativeDriver: USE_NATIVE_DRIVER }),
+          Animated.timing(shakeX, { toValue: -3, duration: 40, useNativeDriver: USE_NATIVE_DRIVER }),
+          Animated.timing(shakeX, { toValue: 2,  duration: 40, useNativeDriver: USE_NATIVE_DRIVER }),
+          Animated.timing(shakeX, { toValue: -2, duration: 40, useNativeDriver: USE_NATIVE_DRIVER }),
+          Animated.timing(shakeX, { toValue: 0,  duration: 40, useNativeDriver: USE_NATIVE_DRIVER }),
+        ])
+      );
+      agitateLoop.start();
+      return () => agitateLoop.stop();
+    }
+
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(bobY, {
@@ -125,11 +144,11 @@ function BudgetCharacterComponent({
     );
     loop.start();
     return () => loop.stop();
-  }, [enableAnimation, reduceMotion, animationType, bobY]);
+  }, [enableAnimation, reduceMotion, animationType, isRuckus, bobY, shakeX]);
 
   // ── Shake animation ───────────────────────────────────────────────
   useEffect(() => {
-    if (!shake || reduceMotion) return;
+    if (!shake || reduceMotion || isRuckus) return;
     Animated.sequence([
       Animated.timing(shakeX, { toValue: 8,  duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
       Animated.timing(shakeX, { toValue: -8, duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
@@ -138,7 +157,7 @@ function BudgetCharacterComponent({
       Animated.timing(shakeX, { toValue: 2,  duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
       Animated.timing(shakeX, { toValue: 0,  duration: 45, useNativeDriver: USE_NATIVE_DRIVER }),
     ]).start();
-  }, [shake, reduceMotion, shakeX]);
+  }, [shake, reduceMotion, isRuckus, shakeX]);
 
   // ── Pulse animation ───────────────────────────────────────────────
   useEffect(() => {

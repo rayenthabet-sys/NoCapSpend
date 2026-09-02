@@ -571,6 +571,174 @@ export function resolveCourtReaction(trigger = 'REPEATED_WEEKLY_FAILURE', charac
 }
 
 /**
+ * Resolve character commentary for personal pattern insights.
+ */
+export function resolveInsightReaction(insightId = '', params = {}) {
+  if (insightId === 'COMMITMENT_LOAD') {
+    return {
+      characterKey: 'riley',
+      assetId: 'riley_light',
+      animationType: 'native',
+      speaker: 'RILEY FREEMAN',
+      quote: 'MAYBE STOP PROMISING YOURSELF TEN THINGS.',
+      subtext: 'Focus on 2 or 3 and knock them all out.',
+    };
+  }
+
+  if (insightId === 'SWEET_SPOT') {
+    return {
+      characterKey: 'ed',
+      assetId: 'ed_wealth',
+      animationType: 'native',
+      speaker: 'ED WUNCLER III',
+      quote: 'THAT’S WHERE YOUR CAPITAL PERFORMS BEST.',
+      subtext: 'Honor your operational capacity and scale from there.',
+    };
+  }
+
+  if (insightId === 'COMEBACK_PROFILE') {
+    return {
+      characterKey: 'ed',
+      assetId: 'ed_wealth',
+      animationType: 'native',
+      speaker: 'ED WUNCLER III',
+      quote: 'YOU KEEP PROVING YOU CAN RECOVER.',
+      subtext: 'Your resilience is documented. Now build sustained runs.',
+    };
+  }
+
+  if (insightId === 'COURT_EFFECTIVENESS') {
+    return {
+      characterKey: 'riley',
+      assetId: 'riley_light',
+      animationType: 'native',
+      speaker: 'RILEY FREEMAN',
+      quote: "GUESS THE COURT WASN'T FOR NOTHING.",
+      subtext: 'You admitted what was wrong, fixed it, and handled business.',
+    };
+  }
+
+  if (insightId === 'RENEGOTIATION_EFFECTIVENESS') {
+    return {
+      characterKey: 'robert',
+      assetId: 'robert_guidance',
+      animationType: 'native',
+      speaker: 'GRANDDAD ROBERT',
+      quote: 'HONEST DEALS YIELD REAL PROGRESS.',
+      subtext: 'Adjusting realistically preserves consistency.',
+    };
+  }
+
+  // Default insight commentary
+  return {
+    characterKey: 'jazmine',
+    assetId: 'jazmine_complete',
+    animationType: 'webp',
+    speaker: 'JAZMINE DUPREE',
+    quote: 'THE DATA DOESN’T LIE!',
+    subtext: 'Learn from what works and keep building your habits.',
+  };
+}
+
+/**
+ * Resolve character commentary for long-term trajectory.
+ */
+export function resolveTimelineReaction(trajectoryState = 'STABLE', params = {}) {
+  if (trajectoryState === 'IMPROVING') {
+    return {
+      characterKey: 'robert',
+      assetId: 'robert_guidance',
+      animationType: 'native',
+      speaker: 'GRANDDAD ROBERT',
+      quote: 'LOOK AT THE LAST FEW WEEKS. THAT’S REAL PROGRESS.',
+      subtext: 'You are executing with more discipline than when you started.',
+    };
+  }
+
+  if (trajectoryState === 'DECLINING') {
+    return {
+      characterKey: 'riley',
+      assetId: 'riley_light',
+      animationType: 'native',
+      speaker: 'RILEY FREEMAN',
+      quote: 'YOU WERE MOVING A LOT BETTER THREE WEEKS AGO.',
+      subtext: 'Get back on your grind before the numbers fall off further.',
+    };
+  }
+
+  if (trajectoryState === 'MIXED') {
+    return {
+      characterKey: 'stinkmeaner',
+      assetId: 'stinkmeaner_roast',
+      animationType: 'native',
+      speaker: 'COLONEL STINKMEANER',
+      quote: 'STOP SWINGING AROUND AND STICK TO THE PLAN!',
+      subtext: 'One great week followed by a dud is not a strategy.',
+    };
+  }
+
+  // Default: Stable / Ed
+  return {
+    characterKey: 'ed',
+    assetId: 'ed_wealth',
+    animationType: 'native',
+    speaker: 'ED WUNCLER III',
+    quote: 'RELIABLE EXECUTION CREATES LONG-TERM CAPITAL.',
+    subtext: 'Steady consistency outperforms chaotic bursts every time.',
+  };
+}
+
+/**
+ * Resolve character commentary for goal lifecycle changes.
+ * @param {'PAUSE'|'RESUME'|'COMPLETE'|'ARCHIVE'|'RESTORE'} action
+ * @param {Object} [params]
+ */
+export function resolveGoalLifecycleReaction(action = 'PAUSE', params = {}) {
+  if (action === 'PAUSE') {
+    return {
+      characterKey: 'robert',
+      assetId: 'robert_guidance',
+      animationType: 'native',
+      speaker: 'GRANDDAD ROBERT',
+      quote: 'A PAUSE ISN’T QUITTING. JUST MAKE SURE YOU COME BACK.',
+      subtext: 'Removing distractions is wisdom. Leaving them permanently is surrender.',
+    };
+  }
+
+  if (action === 'RESUME') {
+    return {
+      characterKey: 'riley',
+      assetId: 'riley_light',
+      animationType: 'native',
+      speaker: 'RILEY FREEMAN',
+      quote: 'BACK IN THE ROOM?',
+      subtext: 'Time to put the work in and prove you meant what you said.',
+    };
+  }
+
+  if (action === 'COMPLETE') {
+    return {
+      characterKey: 'jazmine',
+      assetId: 'jazmine_complete',
+      animationType: 'webp',
+      speaker: 'JAZMINE DUPREE',
+      quote: 'THAT ONE’S DONE. TAKE THE WIN.',
+      subtext: 'You finished what you started. Carry this standard into the next target.',
+    };
+  }
+
+  // Default: ARCHIVE / RESTORE / Ed
+  return {
+    characterKey: 'ed',
+    assetId: 'ed_wealth',
+    animationType: 'native',
+    speaker: 'ED WUNCLER III',
+    quote: 'NOT EVERY PLAN NEEDS TO STAY ACTIVE.',
+    subtext: 'Focus capital on highest-yield priorities.',
+  };
+}
+
+/**
  * Check if today's daily review event was already evaluated & shown to the user.
  */
 export async function hasDailyReviewBeenShown(userId, date = getTodayDateString()) {

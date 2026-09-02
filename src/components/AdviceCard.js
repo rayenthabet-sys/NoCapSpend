@@ -101,7 +101,7 @@ export default function AdviceCard({
         <View style={styles.avatarWrap}>
           <CharacterAvatar
             assetId={avatarAsset}
-            size={62}
+            size={84}
             borderColor={accentColor}
           />
         </View>

@@ -23,14 +23,23 @@ export function generateCheckinLocalId() {
 }
 
 /**
- * Get today's local date formatted as YYYY-MM-DD.
+ * Format a Date instance to local YYYY-MM-DD string.
+ * Avoids UTC timezone shift errors from toISOString().
+ * @param {Date} [d]
+ * @returns {string} 'YYYY-MM-DD'
  */
-export function getTodayDateString() {
-  const d = new Date();
+export function formatLocalDate(d = new Date()) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
+}
+
+/**
+ * Get today's local date formatted as YYYY-MM-DD.
+ */
+export function getTodayDateString() {
+  return formatLocalDate(new Date());
 }
 
 /**
@@ -43,10 +52,7 @@ export function getStartOfWeekDateString(dateStr = getTodayDateString()) {
   // Distance back to Monday:
   const diff = d.getDate() - day + (day === 0 ? -6 : 1);
   const mon = new Date(d.setDate(diff));
-  const year = mon.getFullYear();
-  const month = String(mon.getMonth() + 1).padStart(2, '0');
-  const dayStr = String(mon.getDate()).padStart(2, '0');
-  return `${year}-${month}-${dayStr}`;
+  return formatLocalDate(mon);
 }
 
 /**
@@ -56,10 +62,7 @@ export function getStartOfWeekDateString(dateStr = getTodayDateString()) {
 export function getOffsetWeekStartDateString(baseWeekStart = getStartOfWeekDateString(), offsetWeeks = 0) {
   const d = new Date(baseWeekStart + 'T00:00:00');
   d.setDate(d.getDate() + offsetWeeks * 7);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const dayStr = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${dayStr}`;
+  return formatLocalDate(d);
 }
 
 /**
@@ -228,6 +231,16 @@ export async function getGoalCheckinHistory(userId, goalId, days = 14) {
   return all
     .filter((c) => c.goal_id === goalId && c.checkin_date >= cutoffStr)
     .sort((a, b) => b.checkin_date.localeCompare(a.checkin_date));
+}
+
+/**
+ * Delete a check-in by checkin ID.
+ */
+export async function deleteCheckin(userId, checkinId) {
+  if (!userId || !checkinId) return;
+  const all = await getAllCheckinsRaw(userId);
+  const filtered = all.filter((c) => c.id !== checkinId);
+  await setAllCheckinsRaw(userId, filtered);
 }
 
 /**

@@ -107,3 +107,80 @@ export function getDailyStatus(dailySpent, dailyBudget) {
   else                    state = 'normal';
   return { ratio, pct, state, remaining };
 }
+
+/**
+ * Calculates the informational monthly daily carryover balance.
+ * Formula: Cumulative sum of (dailyBudget - daySpending) from day 1 to today.
+ *
+ * CRITICAL PRODUCT RULE:
+ * This number is purely INFORMATIONAL.
+ * It MUST NOT modify, reduce, increase, replace, or alter the configured daily budget.
+ *
+ * @param {string} userId
+ * @param {number|null} dailyBudget
+ * @param {Array<Object>} [expensesList] - Optional pre-loaded expenses
+ * @returns {Promise<{ balance: number, label: string, type: 'shortfall' | 'surplus' | 'target' } | null>}
+ */
+export async function getMonthlyDailyCarryover(userId, dailyBudget, expensesList = null) {
+  if (!userId || !dailyBudget || dailyBudget <= 0) return null;
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth();
+  const currentDay = now.getDate();
+
+  let expenses = expensesList;
+  if (!expenses) {
+    const startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
+    const todayStr = getTodayDateString();
+    const { data, error } = await supabase
+      .from('expenses')
+      .select('amount, date')
+      .eq('user_id', userId)
+      .gte('date', startDate)
+      .lte('date', todayStr);
+
+    if (error || !data) return null;
+    expenses = data;
+  }
+
+  // Group spending by YYYY-MM-DD
+  const spendingByDate = {};
+  for (const exp of expenses) {
+    const d = exp.date ? exp.date.slice(0, 10) : '';
+    if (d) {
+      spendingByDate[d] = (spendingByDate[d] || 0) + Number(exp.amount || 0);
+    }
+  }
+
+  // Sum differences (dailyBudget - daySpent) from day 1 to today
+  let cumulativeBalance = 0;
+  for (let day = 1; day <= currentDay; day++) {
+    const dayStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const daySpent = spendingByDate[dayStr] || 0;
+    cumulativeBalance += (dailyBudget - daySpent);
+  }
+
+  const roundedBalance = Math.round(cumulativeBalance * 100) / 100;
+
+  if (roundedBalance < 0) {
+    return {
+      balance: roundedBalance,
+      label: `${Math.abs(roundedBalance).toFixed(2)} DT SHORT`,
+      type: 'shortfall',
+    };
+  } else if (roundedBalance > 0) {
+    return {
+      balance: roundedBalance,
+      label: `${roundedBalance.toFixed(2)} DT SURPLUS`,
+      type: 'surplus',
+    };
+  } else {
+    return {
+      balance: 0,
+      label: 'ON TARGET',
+      type: 'target',
+    };
+  }
+}
+

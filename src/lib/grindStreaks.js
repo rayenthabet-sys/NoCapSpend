@@ -7,7 +7,7 @@
 // Never interacts with financial ledgers, budgets, savings, or expenses.
 // ─────────────────────────────────────────────────────────────────
 
-import { getTodayDateString, getStartOfWeekDateString, getOffsetWeekStartDateString } from './grindCheckins';
+import { getTodayDateString, getStartOfWeekDateString, getOffsetWeekStartDateString, formatLocalDate } from './grindCheckins';
 
 export const WEEKLY_TIERS = {
   ELITE: {
@@ -280,7 +280,7 @@ export function calculateDailyStreak(allCheckins = []) {
   // If today is not done yet, check if yesterday was done
   if (!doneDates.has(todayStr)) {
     checkDate.setDate(checkDate.getDate() - 1);
-    const yesterdayStr = checkDate.toISOString().slice(0, 10);
+    const yesterdayStr = formatLocalDate(checkDate);
     if (!doneDates.has(yesterdayStr)) {
       return 0; // Streak broken
     }
@@ -288,7 +288,7 @@ export function calculateDailyStreak(allCheckins = []) {
 
   let streak = 0;
   while (true) {
-    const dStr = checkDate.toISOString().slice(0, 10);
+    const dStr = formatLocalDate(checkDate);
     if (doneDates.has(dStr)) {
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
@@ -313,7 +313,7 @@ export function calculateGoalWeeklyStreak(goal, allCheckins = [], currentWeekSta
   const currentWeekStartStr = getOffsetWeekStartDateString(currentWeekStart, offset);
   const currentWeekEnd = new Date(currentWeekStartStr + 'T00:00:00');
   currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
-  const currentWeekEndStr = currentWeekEnd.toISOString().slice(0, 10);
+  const currentWeekEndStr = formatLocalDate(currentWeekEnd);
 
   const currentCheckins = allCheckins.filter(
     (c) => c.checkin_date >= currentWeekStartStr && c.checkin_date <= currentWeekEndStr
@@ -330,7 +330,7 @@ export function calculateGoalWeeklyStreak(goal, allCheckins = [], currentWeekSta
     const weekStartStr = getOffsetWeekStartDateString(currentWeekStart, offset);
     const weekEnd = new Date(weekStartStr + 'T00:00:00');
     weekEnd.setDate(weekEnd.getDate() + 6);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+    const weekEndStr = formatLocalDate(weekEnd);
 
     const weekCheckins = allCheckins.filter(
       (c) => c.checkin_date >= weekStartStr && c.checkin_date <= weekEndStr
@@ -364,7 +364,7 @@ export function calculateWeeklyTrend(goals = [], allCheckins = [], currentWeekSt
     const weekStart = getOffsetWeekStartDateString(currentWeekStart, offset);
     const weekEnd = new Date(weekStart + 'T00:00:00');
     weekEnd.setDate(weekEnd.getDate() + 6);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+    const weekEndStr = formatLocalDate(weekEnd);
 
     const weekCheckins = allCheckins.filter(
       (c) => c.checkin_date >= weekStart && c.checkin_date <= weekEndStr

@@ -210,6 +210,28 @@ export default function NavigationDrawer({
               <Text style={styles.navText}>CHARACTER COURT</Text>
             </TouchableOpacity>
 
+            <TouchableOpacity
+              style={[
+                styles.navItem,
+                currentRoute === '/grind/insights' && styles.navItemActive,
+              ]}
+              onPress={() => handleNavigate('/grind/insights')}
+            >
+              <Text style={styles.navIcon}>📈</Text>
+              <Text style={styles.navText}>YOUR PATTERNS</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.navItem,
+                currentRoute === '/grind/timeline' && styles.navItemActive,
+              ]}
+              onPress={() => handleNavigate('/grind/timeline')}
+            >
+              <Text style={styles.navIcon}>⏳</Text>
+              <Text style={styles.navText}>YOUR JOURNEY</Text>
+            </TouchableOpacity>
+
             {/* ── SECTION: FINANCIAL ── */}
             <View style={[styles.sectionHeader, { marginTop: spacing.md }]}>
               <Text style={styles.sectionTitle}>FINANCIAL</Text>
