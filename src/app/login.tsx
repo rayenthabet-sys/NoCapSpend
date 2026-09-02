@@ -22,12 +22,15 @@ export default function Login() {
   const loading = auth?.loading;
   const { isOnline } = useNetworkStatus();
 
-  const [email, setEmail]         = useState('');
-  const [password, setPassword]   = useState('');
-  const [signingIn, setSigningIn] = useState(false);
+  const [mode, setMode]                       = useState<'login' | 'signup'>('login');
+  const [email, setEmail]                     = useState('');
+  const [password, setPassword]               = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [submitting, setSubmitting]           = useState(false);
   const [rememberAccount, setRememberAccount] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
 
   // Load remembered email on mount
   useEffect(() => {
@@ -64,17 +67,23 @@ export default function Login() {
     );
   }
 
+  function switchMode(newMode: 'login' | 'signup') {
+    setMode(newMode);
+    setPassword('');
+    setConfirmPassword('');
+  }
+
   async function signIn() {
     if (!email.trim() || !password.trim()) {
       showAlert('Missing fields', 'Enter your email and password.');
       return;
     }
-    setSigningIn(true);
+    setSubmitting(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password: password.trim(),
     });
-    setSigningIn(false);
+    setSubmitting(false);
 
     if (error) {
       showAlert('Error', error.message);
@@ -91,18 +100,43 @@ export default function Login() {
   }
 
   async function signUp() {
-    if (!email.trim() || !password.trim()) {
+    const trimmedEmail = email.trim();
+    const trimmedPassword = password.trim();
+    const trimmedConfirm = confirmPassword.trim();
+
+    if (!trimmedEmail || !trimmedPassword) {
       showAlert('Missing fields', 'Enter your email and password.');
       return;
     }
-    setSigningIn(true);
-    const { error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password.trim(),
+    if (trimmedPassword.length < 6) {
+      showAlert('Weak Password', 'Password must be at least 6 characters long.');
+      return;
+    }
+    if (trimmedPassword !== trimmedConfirm) {
+      showAlert('Password Mismatch', 'Passwords do not match. Please verify.');
+      return;
+    }
+
+    setSubmitting(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: trimmedEmail,
+      password: trimmedPassword,
     });
-    setSigningIn(false);
-    if (error) showAlert('Error', error.message);
-    else showAlert('Success', 'Account created — you can log in now.');
+    setSubmitting(false);
+
+    if (error) {
+      showAlert('Error', error.message);
+    } else {
+      if (data?.session) {
+        if (rememberAccount) {
+          await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, trimmedEmail);
+          await AsyncStorage.setItem(REMEMBER_FLAG_KEY, 'true');
+        }
+      } else {
+        showAlert('Account Created', 'Your account has been created! Please log in.');
+        switchMode('login');
+      }
+    }
   }
 
   async function handleToggleRemember() {
@@ -137,7 +171,31 @@ export default function Login() {
         </View>
 
         <Text style={styles.title}>BUDGET BUDDY</Text>
-        <Text style={styles.subtitle}>TRACK YOUR FINANCES</Text>
+        <Text style={styles.subtitle}>
+          {mode === 'login' ? 'TRACK YOUR FINANCES' : 'CREATE YOUR ACCOUNT'}
+        </Text>
+
+        {/* Tab switcher: lets the user choose Create Account first */}
+        <View style={styles.tabContainer}>
+          <TouchableOpacity
+            style={[styles.tab, mode === 'login' && styles.tabActive]}
+            onPress={() => switchMode('login')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.tabText, mode === 'login' && styles.tabTextActive]}>
+              SIGN IN
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.tab, mode === 'signup' && styles.tabActive]}
+            onPress={() => switchMode('signup')}
+            activeOpacity={0.7}
+          >
+            <Text style={[styles.tabText, mode === 'signup' && styles.tabTextActive]}>
+              CREATE ACCOUNT
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <TextInput
           style={styles.input}
@@ -156,46 +214,78 @@ export default function Login() {
         <TextInput
           ref={passwordRef}
           style={styles.input}
-          placeholder="Password"
+          placeholder={mode === 'login' ? 'Password' : 'Create password (min 6 chars)'}
           placeholderTextColor={colors.textMuted}
           secureTextEntry
-          returnKeyType="go"
+          returnKeyType={mode === 'login' ? 'go' : 'next'}
           value={password}
           onChangeText={setPassword}
-          onSubmitEditing={signIn}
-          textContentType="password"
-          autoComplete="current-password"
+          onSubmitEditing={() => {
+            if (mode === 'login') {
+              signIn();
+            } else {
+              confirmPasswordRef.current?.focus();
+            }
+          }}
+          blurOnSubmit={mode === 'login'}
+          textContentType={mode === 'login' ? 'password' : 'newPassword'}
+          autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
         />
 
-        {/* Remember Account toggle */}
-        <TouchableOpacity
-          style={styles.rememberRow}
-          onPress={handleToggleRemember}
-          activeOpacity={0.7}
-        >
-          <View style={[styles.checkbox, rememberAccount && styles.checkboxChecked]}>
-            {rememberAccount && <Text style={styles.checkmark}>✓</Text>}
-          </View>
-          <Text style={styles.rememberLabel}>REMEMBER ACCOUNT</Text>
-        </TouchableOpacity>
+        {mode === 'signup' && (
+          <TextInput
+            ref={confirmPasswordRef}
+            style={styles.input}
+            placeholder="Confirm password"
+            placeholderTextColor={colors.textMuted}
+            secureTextEntry
+            returnKeyType="go"
+            value={confirmPassword}
+            onChangeText={setConfirmPassword}
+            onSubmitEditing={signUp}
+            textContentType="newPassword"
+          />
+        )}
+
+        {/* Remember Account toggle (shown in Login mode) */}
+        {mode === 'login' && (
+          <TouchableOpacity
+            style={styles.rememberRow}
+            onPress={handleToggleRemember}
+            activeOpacity={0.7}
+          >
+            <View style={[styles.checkbox, rememberAccount && styles.checkboxChecked]}>
+              {rememberAccount && <Text style={styles.checkmark}>✓</Text>}
+            </View>
+            <Text style={styles.rememberLabel}>REMEMBER ACCOUNT</Text>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           style={[styles.button, styles.primaryButton]}
-          onPress={signIn}
-          disabled={signingIn}
+          onPress={mode === 'login' ? signIn : signUp}
+          disabled={submitting}
         >
-          <Text style={styles.buttonText}>{signingIn ? 'LOGGING IN...' : 'LOGIN'}</Text>
+          <Text style={styles.buttonText}>
+            {submitting
+              ? (mode === 'login' ? 'LOGGING IN...' : 'CREATING ACCOUNT...')
+              : (mode === 'login' ? 'LOGIN' : 'CREATE ACCOUNT')}
+          </Text>
         </TouchableOpacity>
 
-        <View style={{ height: 10 }} />
+        <View style={{ height: 16 }} />
 
+        {/* Bottom switcher helper */}
         <TouchableOpacity
-          style={[styles.button, styles.secondaryButton]}
-          onPress={signUp}
-          disabled={signingIn}
+          style={styles.switchModeContainer}
+          onPress={() => switchMode(mode === 'login' ? 'signup' : 'login')}
+          activeOpacity={0.7}
         >
-          <Text style={[styles.buttonText, { color: colors.textSecondary }]}>
-            {signingIn ? 'WAIT...' : 'CREATE ACCOUNT'}
+          <Text style={styles.switchModeText}>
+            {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
+            <Text style={styles.switchModeHighlight}>
+              {mode === 'login' ? 'CREATE ACCOUNT' : 'LOG IN'}
+            </Text>
           </Text>
         </TouchableOpacity>
 
@@ -238,9 +328,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.primary,
     textAlign: 'center',
-    marginBottom: spacing.xl,
+    marginBottom: spacing.lg,
     letterSpacing: 2,
   },
+
+  // Mode switcher tab bar
+  tabContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    padding: 3,
+    marginBottom: spacing.lg,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radii.xs,
+  },
+  tabActive: {
+    backgroundColor: colors.cardElevated,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+  tabText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: colors.textMuted,
+    letterSpacing: 1.5,
+  },
+  tabTextActive: {
+    color: colors.primary,
+  },
+
   input: {
     fontFamily: fonts.body,
     borderWidth: 1.5,
@@ -302,15 +425,27 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cardElevated,
     borderColor: colors.primary,
   },
-  secondaryButton: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-  },
   buttonText: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 14,
     color: colors.textPrimary,
     letterSpacing: 1.5,
+  },
+
+  // Bottom switch mode helper
+  switchModeContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  switchModeText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  switchModeHighlight: {
+    fontFamily: fonts.bodySemiBold,
+    color: colors.primary,
+    letterSpacing: 1,
   },
 
   // Offline screen
