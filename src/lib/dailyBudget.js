@@ -8,8 +8,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
-const DAILY_BUDGET_KEY  = '@budget_buddy:daily_budget';
-const DAILY_LOCK_KEY    = '@budget_buddy:daily_expense_lock';
+const DAILY_BUDGET_KEY     = '@budget_buddy:daily_budget';
+const DAILY_LOCK_KEY       = '@budget_buddy:daily_expense_lock';
+const CYCLE_START_DAY_KEY  = '@budget_buddy:cycle_start_day';
 
 // ── Preference accessors ─────────────────────────────────────────
 
@@ -42,6 +43,66 @@ export async function getDailyLockEnabled() {
 /** Persist the daily expense lock enabled/disabled state. */
 export async function setDailyLockEnabled(enabled) {
   await AsyncStorage.setItem(DAILY_LOCK_KEY, enabled ? 'true' : 'false');
+}
+
+/** Returns the configured budget cycle start day (1 to 28). Default: 1 (1st of the month). */
+export async function getCycleStartDay() {
+  const val = await AsyncStorage.getItem(CYCLE_START_DAY_KEY);
+  if (val === null) return 1;
+  const parsed = parseInt(val, 10);
+  return (isNaN(parsed) || parsed < 1 || parsed > 28) ? 1 : parsed;
+}
+
+/** Persist the budget cycle start day (1 to 28). */
+export async function setCycleStartDay(day) {
+  const num = parseInt(String(day), 10);
+  if (isNaN(num) || num < 1 || num > 28) {
+    throw new Error('Cycle start day must be between 1 and 28.');
+  }
+  await AsyncStorage.setItem(CYCLE_START_DAY_KEY, String(num));
+}
+
+/**
+ * Calculates the start and end dates ('YYYY-MM-DD') of the current budget cycle.
+ * Default cycleStartDay is 1 (calendar month 1st to last day).
+ *
+ * @param {number} [cycleStartDay=1]
+ * @param {Date} [referenceDate=new Date()]
+ * @returns {{ startDate: string, endDate: string }}
+ */
+export function getCycleDateRange(cycleStartDay = 1, referenceDate = new Date()) {
+  const day = Math.min(Math.max(1, parseInt(String(cycleStartDay), 10) || 1), 28);
+  const y = referenceDate.getFullYear();
+  const m = referenceDate.getMonth();
+  const d = referenceDate.getDate();
+
+  let startYear = y;
+  let startMonth = m;
+
+  if (d < day) {
+    // Current cycle started on day 'day' of previous month
+    startMonth = m - 1;
+    if (startMonth < 0) {
+      startMonth = 11;
+      startYear = y - 1;
+    }
+  }
+
+  const endYear = startMonth === 11 ? startYear + 1 : startYear;
+  const endMonth = (startMonth + 1) % 12;
+
+  const pad = (n) => String(n).padStart(2, '0');
+  const startDateStr = `${startYear}-${pad(startMonth + 1)}-${pad(day)}`;
+
+  let endDateStr;
+  if (day === 1) {
+    const lastDayOfStartMonth = new Date(startYear, startMonth + 1, 0).getDate();
+    endDateStr = `${startYear}-${pad(startMonth + 1)}-${pad(lastDayOfStartMonth)}`;
+  } else {
+    endDateStr = `${endYear}-${pad(endMonth + 1)}-${pad(day - 1)}`;
+  }
+
+  return { startDate: startDateStr, endDate: endDateStr };
 }
 
 // ── Date helper ──────────────────────────────────────────────────
@@ -125,14 +186,12 @@ export async function getMonthlyDailyCarryover(userId, dailyBudget, expensesList
   if (!userId || !dailyBudget || dailyBudget <= 0) return null;
 
   const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth();
-  const currentDay = now.getDate();
+  const cycleStartDay = await getCycleStartDay();
+  const { startDate } = getCycleDateRange(cycleStartDay, now);
+  const todayStr = getTodayDateString();
 
   let expenses = expensesList;
   if (!expenses) {
-    const startDate = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-01`;
-    const todayStr = getTodayDateString();
     const { data, error } = await supabase
       .from('expenses')
       .select('amount, date')
@@ -153,12 +212,22 @@ export async function getMonthlyDailyCarryover(userId, dailyBudget, expensesList
     }
   }
 
-  // Sum differences (dailyBudget - daySpent) from day 1 to today
+  // Iterate day by day from startDate to todayStr
+  const [sy, sm, sd] = startDate.split('-').map(Number);
+  const [ty, tm, td] = todayStr.split('-').map(Number);
+
+  const cur = new Date(sy, sm - 1, sd);
+  const end = new Date(ty, tm - 1, td);
+
   let cumulativeBalance = 0;
-  for (let day = 1; day <= currentDay; day++) {
-    const dayStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const daySpent = spendingByDate[dayStr] || 0;
+  while (cur <= end) {
+    const y = cur.getFullYear();
+    const m = String(cur.getMonth() + 1).padStart(2, '0');
+    const d = String(cur.getDate()).padStart(2, '0');
+    const dateStr = `${y}-${m}-${d}`;
+    const daySpent = spendingByDate[dateStr] || 0;
     cumulativeBalance += (dailyBudget - daySpent);
+    cur.setDate(cur.getDate() + 1);
   }
 
   const roundedBalance = Math.round(cumulativeBalance * 100) / 100;

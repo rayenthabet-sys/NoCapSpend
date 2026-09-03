@@ -18,6 +18,9 @@ import {
   getDailyBudget,
   getDailyLockEnabled,
   setDailyLockEnabled,
+  getCycleStartDay,
+  setCycleStartDay,
+  getCycleDateRange,
 } from '../lib/dailyBudget';
 import {
   getReducedMotionPreference,
@@ -37,6 +40,7 @@ export default function Settings() {
 
   const [dailyBudget, setDailyBudgetState] = useState<number | null>(null);
   const [lockEnabled, setLockEnabledState] = useState(false);
+  const [cycleStartDay, setCycleStartDayState] = useState(1);
   const [reducedMotion, setReducedMotionState] = useState(false);
   const [limitModalVisible, setLimitModalVisible] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -45,12 +49,14 @@ export default function Settings() {
   // Load preferences on focus / mount
   const loadPreferences = useCallback(async () => {
     try {
-      const [budget, lock] = await Promise.all([
+      const [budget, lock, cycleDay] = await Promise.all([
         getDailyBudget(),
         getDailyLockEnabled(),
+        getCycleStartDay(),
       ]);
       setDailyBudgetState(budget);
       setLockEnabledState(lock);
+      setCycleStartDayState(cycleDay);
 
       if (userId) {
         const motion = await getReducedMotionPreference(userId);
@@ -79,6 +85,12 @@ export default function Settings() {
   async function handleToggleLock(val: boolean) {
     setLockEnabledState(val);
     await setDailyLockEnabled(val);
+  }
+
+  // ── Budget Cycle Start Day ─────────────────────────────────────────
+  async function handleSelectCycleDay(day: number) {
+    setCycleStartDayState(day);
+    await setCycleStartDay(day);
   }
 
   // ── Sign Out Flow ─────────────────────────────────────────────────
@@ -325,6 +337,69 @@ export default function Settings() {
             </Text>
           </View>
         )}
+
+        <View style={styles.divider} />
+
+        {/* Budget Cycle Start Day */}
+        <View style={styles.actionBlock}>
+          <Text style={styles.itemTitle}>Budget Cycle Start Day</Text>
+          <Text style={styles.itemDesc}>
+            The day of the month your budget begins (e.g. your payday). Defaults to the 1st of the month.
+          </Text>
+
+          {/* Quick preset chips */}
+          <View style={styles.cycleChipRow}>
+            {[1, 5, 15, 25].map((d) => (
+              <TouchableOpacity
+                key={d}
+                style={[
+                  styles.cycleChipBtn,
+                  cycleStartDay === d && styles.cycleChipBtnActive,
+                ]}
+                onPress={() => handleSelectCycleDay(d)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.cycleChipText,
+                    cycleStartDay === d && styles.cycleChipTextActive,
+                  ]}
+                >
+                  {d === 1 ? '1st (Default)' : `${d}th`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Stepper for custom day 1-28 */}
+          <View style={styles.stepperRow}>
+            <Text style={styles.stepperLabel}>Custom Day (1–28):</Text>
+            <View style={styles.stepperControls}>
+              <TouchableOpacity
+                style={[styles.stepperBtn, cycleStartDay <= 1 && styles.stepperBtnDisabled]}
+                onPress={() => cycleStartDay > 1 && handleSelectCycleDay(cycleStartDay - 1)}
+                disabled={cycleStartDay <= 1}
+              >
+                <Text style={styles.stepperBtnText}>−</Text>
+              </TouchableOpacity>
+              <Text style={styles.stepperDisplay}>{cycleStartDay}</Text>
+              <TouchableOpacity
+                style={[styles.stepperBtn, cycleStartDay >= 28 && styles.stepperBtnDisabled]}
+                onPress={() => cycleStartDay < 28 && handleSelectCycleDay(cycleStartDay + 1)}
+                disabled={cycleStartDay >= 28}
+              >
+                <Text style={styles.stepperBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Current cycle range indicator */}
+          <View style={styles.cycleRangeBadge}>
+            <Text style={styles.cycleRangeText}>
+              Current cycle: {getCycleDateRange(cycleStartDay).startDate} → {getCycleDateRange(cycleStartDay).endDate}
+            </Text>
+          </View>
+        </View>
 
         <View style={styles.divider} />
 
@@ -685,5 +760,95 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textSecondary,
     letterSpacing: 1.5,
+  },
+
+  // Cycle Start Day Styles
+  cycleChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  cycleChipBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: radii.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  cycleChipBtnActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.cardElevated,
+  },
+  cycleChipText: {
+    fontFamily: fonts.bodySemiBold,
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  cycleChipTextActive: {
+    color: colors.primary,
+  },
+  stepperRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    backgroundColor: colors.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: radii.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  stepperLabel: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.textSecondary,
+  },
+  stepperControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  stepperBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.xs,
+    backgroundColor: colors.cardElevated,
+    borderWidth: 1,
+    borderColor: colors.borderAccent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnDisabled: {
+    opacity: 0.3,
+  },
+  stepperBtnText: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 18,
+    color: colors.primary,
+    lineHeight: 20,
+  },
+  stepperDisplay: {
+    fontFamily: fonts.bodyBold,
+    fontSize: 15,
+    color: colors.textPrimary,
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  cycleRangeBadge: {
+    marginTop: 10,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  cycleRangeText: {
+    fontFamily: fonts.body,
+    fontSize: 11,
+    color: colors.textMuted,
   },
 });
