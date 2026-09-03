@@ -39,18 +39,6 @@ export default function Settings() {
   const userId = session?.user?.id;
   const { status } = useNetworkStatus();
 
-  if (authLoading) {
-    return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </View>
-    );
-  }
-
-  if (!session) {
-    return <Redirect href="/login" />;
-  }
-
   const [dailyBudget, setDailyBudgetState] = useState<number | null>(null);
   const [lockEnabled, setLockEnabledState] = useState(false);
   const [cycleStartDay, setCycleStartDayState] = useState(1);
@@ -228,6 +216,19 @@ export default function Settings() {
         },
       ]
     );
+  }
+
+  // ── Authentication Guards (placed after all hooks) ───────────────
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <Redirect href="/login" />;
   }
 
   // ── User Information formatting ───────────────────────────────────
