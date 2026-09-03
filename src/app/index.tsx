@@ -223,7 +223,10 @@ export default function Home() {
     if (!session) return;
     setDailyLoading(true);
     try {
-      const [budget, lock] = await Promise.all([getDailyBudget(), getDailyLockEnabled()]);
+      const [budget, lock] = await Promise.all([
+        getDailyBudget(session.user.id),
+        getDailyLockEnabled(session.user.id)
+      ]);
       setDailyBudget(budget);
       setDailyLockEnabled(lock);
 

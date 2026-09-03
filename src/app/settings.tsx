@@ -51,9 +51,9 @@ export default function Settings() {
   const loadPreferences = useCallback(async () => {
     try {
       const [budget, lock, cycleDay] = await Promise.all([
-        getDailyBudget(),
-        getDailyLockEnabled(),
-        getCycleStartDay(),
+        getDailyBudget(userId),
+        getDailyLockEnabled(userId),
+        getCycleStartDay(userId),
       ]);
       setDailyBudgetState(budget);
       setLockEnabledState(lock);
@@ -85,13 +85,13 @@ export default function Settings() {
   // ── Expense Lock Toggle ───────────────────────────────────────────
   async function handleToggleLock(val: boolean) {
     setLockEnabledState(val);
-    await setDailyLockEnabled(val);
+    await setDailyLockEnabled(val, userId);
   }
 
   // ── Budget Cycle Start Day ─────────────────────────────────────────
   async function handleSelectCycleDay(day: number) {
     setCycleStartDayState(day);
-    await setCycleStartDay(day);
+    await setCycleStartDay(day, userId);
   }
 
   // ── Sign Out Flow ─────────────────────────────────────────────────

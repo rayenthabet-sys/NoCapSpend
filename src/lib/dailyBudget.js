@@ -8,58 +8,123 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from './supabase';
 
-const DAILY_BUDGET_KEY     = '@budget_buddy:daily_budget';
-const DAILY_LOCK_KEY       = '@budget_buddy:daily_expense_lock';
-const CYCLE_START_DAY_KEY  = '@budget_buddy:cycle_start_day';
+const PREFIX = '@bb_cache_';
+const BUCKET_DAILY_BUDGET = 'DAILY_BUDGET';
+const BUCKET_DAILY_LOCK = 'DAILY_EXPENSE_LOCK';
+const BUCKET_CYCLE_START_DAY = 'CYCLE_START_DAY';
 
-// ── Preference accessors ─────────────────────────────────────────
+// Legacy un-scoped keys for one-time seamless migration
+const LEGACY_DAILY_BUDGET_KEY     = '@budget_buddy:daily_budget';
+const LEGACY_DAILY_LOCK_KEY       = '@budget_buddy:daily_expense_lock';
+const LEGACY_CYCLE_START_DAY_KEY  = '@budget_buddy:cycle_start_day';
 
-/** Returns the stored daily budget in DT, or null if not set. */
-export async function getDailyBudget() {
-  const val = await AsyncStorage.getItem(DAILY_BUDGET_KEY);
+async function resolveUserId(userId) {
+  if (userId) return userId;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.user?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+function getUserKey(userId, bucket) {
+  return `${PREFIX}${userId}:${bucket}`;
+}
+
+// ── Preference accessors (Strictly User-Scoped) ───────────────────
+
+/**
+ * Returns the stored daily budget in DT for the user, or null if not set.
+ * Security: Legacy un-scoped keys are purged on detection to prevent any cross-account leakage.
+ */
+export async function getDailyBudget(userId) {
+  const uid = await resolveUserId(userId);
+  if (!uid) return null;
+
+  // Purge any lingering un-scoped legacy key without adopting it
+  try { await AsyncStorage.removeItem(LEGACY_DAILY_BUDGET_KEY); } catch {}
+
+  const key = getUserKey(uid, BUCKET_DAILY_BUDGET);
+  const val = await AsyncStorage.getItem(key);
+
   if (val === null) return null;
   const parsed = parseFloat(val);
   return isNaN(parsed) ? null : parsed;
 }
 
 /**
- * Persist a new daily budget.
+ * Persist a new daily budget for the user.
  * @throws if amount is invalid
  */
-export async function setDailyBudget(amount) {
+export async function setDailyBudget(amount, userId) {
   const num = parseFloat(String(amount));
   if (!num || isNaN(num) || num <= 0) {
     throw new Error('Daily budget must be a number greater than 0.');
   }
-  await AsyncStorage.setItem(DAILY_BUDGET_KEY, String(num));
+  const uid = await resolveUserId(userId);
+  if (!uid) {
+    throw new Error('Cannot set daily budget without an authenticated user.');
+  }
+  const key = getUserKey(uid, BUCKET_DAILY_BUDGET);
+  await AsyncStorage.setItem(key, String(num));
+  try { await AsyncStorage.removeItem(LEGACY_DAILY_BUDGET_KEY); } catch {}
 }
 
-/** Returns whether the daily expense lock is enabled. */
-export async function getDailyLockEnabled() {
-  const val = await AsyncStorage.getItem(DAILY_LOCK_KEY);
+/**
+ * Returns whether the daily expense lock is enabled for the user.
+ * Defaults to false. Legacy un-scoped keys are purged.
+ */
+export async function getDailyLockEnabled(userId) {
+  const uid = await resolveUserId(userId);
+  if (!uid) return false;
+
+  try { await AsyncStorage.removeItem(LEGACY_DAILY_LOCK_KEY); } catch {}
+
+  const key = getUserKey(uid, BUCKET_DAILY_LOCK);
+  const val = await AsyncStorage.getItem(key);
+
   return val === 'true';
 }
 
-/** Persist the daily expense lock enabled/disabled state. */
-export async function setDailyLockEnabled(enabled) {
-  await AsyncStorage.setItem(DAILY_LOCK_KEY, enabled ? 'true' : 'false');
+/** Persist the daily expense lock enabled/disabled state for the user. */
+export async function setDailyLockEnabled(enabled, userId) {
+  const uid = await resolveUserId(userId);
+  if (!uid) return;
+  const key = getUserKey(uid, BUCKET_DAILY_LOCK);
+  await AsyncStorage.setItem(key, enabled ? 'true' : 'false');
+  try { await AsyncStorage.removeItem(LEGACY_DAILY_LOCK_KEY); } catch {}
 }
 
-/** Returns the configured budget cycle start day (1 to 28). Default: 1 (1st of the month). */
-export async function getCycleStartDay() {
-  const val = await AsyncStorage.getItem(CYCLE_START_DAY_KEY);
+/**
+ * Returns the configured budget cycle start day (1 to 28) for the user.
+ * Defaults to 1 (1st of the month). Legacy un-scoped keys are purged.
+ */
+export async function getCycleStartDay(userId) {
+  const uid = await resolveUserId(userId);
+  if (!uid) return 1;
+
+  try { await AsyncStorage.removeItem(LEGACY_CYCLE_START_DAY_KEY); } catch {}
+
+  const key = getUserKey(uid, BUCKET_CYCLE_START_DAY);
+  const val = await AsyncStorage.getItem(key);
+
   if (val === null) return 1;
   const parsed = parseInt(val, 10);
   return (isNaN(parsed) || parsed < 1 || parsed > 28) ? 1 : parsed;
 }
 
-/** Persist the budget cycle start day (1 to 28). */
-export async function setCycleStartDay(day) {
+/** Persist the budget cycle start day (1 to 28) for the user. */
+export async function setCycleStartDay(day, userId) {
   const num = parseInt(String(day), 10);
   if (isNaN(num) || num < 1 || num > 28) {
     throw new Error('Cycle start day must be between 1 and 28.');
   }
-  await AsyncStorage.setItem(CYCLE_START_DAY_KEY, String(num));
+  const uid = await resolveUserId(userId);
+  if (!uid) return;
+  const key = getUserKey(uid, BUCKET_CYCLE_START_DAY);
+  await AsyncStorage.setItem(key, String(num));
+  try { await AsyncStorage.removeItem(LEGACY_CYCLE_START_DAY_KEY); } catch {}
 }
 
 /**
@@ -186,7 +251,7 @@ export async function getMonthlyDailyCarryover(userId, dailyBudget, expensesList
   if (!userId || !dailyBudget || dailyBudget <= 0) return null;
 
   const now = new Date();
-  const cycleStartDay = await getCycleStartDay();
+  const cycleStartDay = await getCycleStartDay(userId);
   const { startDate } = getCycleDateRange(cycleStartDay, now);
   const todayStr = getTodayDateString();
 

@@ -68,8 +68,8 @@ export default function AddExpense() {
   const loadDailyContext = useCallback(async () => {
     if (!session) return;
     const [budget, lock] = await Promise.all([
-      getDailyBudget(),
-      getDailyLockEnabled(),
+      getDailyBudget(session.user.id),
+      getDailyLockEnabled(session.user.id),
     ]);
     setDailyBudget(budget);
     setLockEnabled(lock);
