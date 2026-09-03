@@ -27,7 +27,7 @@ import {
   setReducedMotionPreference,
 } from '../lib/preferences';
 import { showAlert } from '../lib/dialog';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, Redirect } from 'expo-router';
 import { useNetworkStatus } from '../lib/networkStatus';
 import NetworkBanner from '../components/NetworkBanner';
 import AdjustDailyLimitModal from '../components/AdjustDailyLimitModal';
@@ -35,8 +35,21 @@ import AdjustDailyLimitModal from '../components/AdjustDailyLimitModal';
 export default function Settings() {
   const auth = useAuth() as any;
   const session = auth?.session;
+  const authLoading = auth?.loading;
   const userId = session?.user?.id;
   const { status } = useNetworkStatus();
+
+  if (authLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background }}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <Redirect href="/login" />;
+  }
 
   const [dailyBudget, setDailyBudgetState] = useState<number | null>(null);
   const [lockEnabled, setLockEnabledState] = useState(false);
