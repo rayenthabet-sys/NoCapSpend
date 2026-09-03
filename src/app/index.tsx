@@ -35,6 +35,7 @@ import DailyMeter from '../components/DailyMeter';
 import NetworkBanner from '../components/NetworkBanner';
 import AdviceCard from '../components/AdviceCard';
 import NavigationDrawer from '../components/NavigationDrawer';
+import AdjustDailyLimitModal from '../components/AdjustDailyLimitModal';
 
 // ─────────────────────────────────────────────────────────────────
 // Helpers
@@ -88,11 +89,12 @@ export default function Home() {
   const [recentTx,           setRecentTx]           = useState<RecentTx[]>([]);
 
   // ── Daily budget state ───────────────────────────────────────────
-  const [dailySpent,       setDailySpent]       = useState(0);
-  const [dailyBudget,      setDailyBudget]      = useState<number | null>(null);
-  const [dailyLockEnabled, setDailyLockEnabled] = useState(false);
-  const [dailyLoading,     setDailyLoading]     = useState(true);
-  const [dailyCarryover,   setDailyCarryover]   = useState<{ balance: number; label: string; type: 'shortfall' | 'surplus' | 'target' } | null>(null);
+  const [dailySpent,               setDailySpent]               = useState(0);
+  const [dailyBudget,              setDailyBudget]              = useState<number | null>(null);
+  const [dailyLockEnabled,         setDailyLockEnabled]         = useState(false);
+  const [dailyLoading,             setDailyLoading]             = useState(true);
+  const [dailyCarryover,           setDailyCarryover]           = useState<{ balance: number; label: string; type: 'shortfall' | 'surplus' | 'target' } | null>(null);
+  const [adjustLimitModalVisible,  setAdjustLimitModalVisible]  = useState(false);
 
   // ── Navigation Drawer state ──────────────────────────────────────
   const [drawerVisible, setDrawerVisible] = useState(false);
@@ -375,6 +377,34 @@ export default function Home() {
           </TouchableOpacity>
         </View>
 
+        {/* ── YOUR DAILY LIMIT ─────────────────────────────── */}
+        <View style={styles.dailyLimitCard}>
+          <View style={styles.dailyLimitTop}>
+            <Text style={styles.dailyLimitSectionTitle}>YOUR DAILY LIMIT</Text>
+            <Text style={styles.dailyLimitCopy}>
+              How much can you spend today without throwing tomorrow off?
+            </Text>
+          </View>
+
+          <View style={styles.dailyLimitBottom}>
+            <View style={styles.dailyLimitAmountBlock}>
+              <Text style={styles.dailyLimitAmount}>
+                {dailyBudget && dailyBudget > 0 ? `${dailyBudget.toFixed(2)} DT` : 'NOT SET'}
+              </Text>
+              <Text style={styles.dailyLimitSubLabel}>DAILY LIMIT</Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.adjustLimitBtn}
+              onPress={() => setAdjustLimitModalVisible(true)}
+              activeOpacity={0.7}
+              accessibilityLabel="Adjust daily spending limit"
+            >
+              <Text style={styles.adjustLimitBtnText}>[ ADJUST LIMIT ]</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* ── DAILY SPENDING METER ──────────────────────────── */}
         <DailyMeter
           dailySpent={dailySpent}
@@ -384,6 +414,7 @@ export default function Home() {
           characterAssetId={characterState.assetId}
           characterLabel={characterLabel}
           carryoverInfo={dailyCarryover}
+          onAdjustLimit={() => setAdjustLimitModalVisible(true)}
         />
 
         {/* ── INCOME / EXPENSES CARDS ───────────────────────── */}
@@ -543,6 +574,15 @@ export default function Home() {
             </TouchableOpacity>
           </Link>
         </View>
+
+        <AdjustDailyLimitModal
+          visible={adjustLimitModalVisible}
+          currentLimit={dailyBudget}
+          onClose={() => setAdjustLimitModalVisible(false)}
+          onSaved={() => {
+            loadDailyData();
+          }}
+        />
 
         <View style={{ height: 48 }} />
       </ScrollView>
@@ -914,5 +954,72 @@ const styles = StyleSheet.create({
     color:         colors.textPrimary,
     letterSpacing: 4,
     marginTop:     spacing.md,
+  },
+
+  // ── YOUR DAILY LIMIT Card ──────────────────────────────────────
+  dailyLimitCard: {
+    backgroundColor: colors.cardSecondary,
+    borderRadius:    radii.md,
+    borderWidth:     1.5,
+    borderColor:     colors.border,
+    padding:         spacing.md,
+    marginBottom:    12,
+  },
+  dailyLimitTop: {
+    marginBottom: 10,
+  },
+  dailyLimitSectionTitle: {
+    fontFamily:    fonts.bodyBold,
+    fontSize:      11,
+    color:         colors.primary,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
+    marginBottom:  4,
+  },
+  dailyLimitCopy: {
+    fontFamily:    fonts.body,
+    fontSize:      13,
+    color:         colors.textSecondary,
+    lineHeight:    18,
+  },
+  dailyLimitBottom: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    paddingTop:     8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  dailyLimitAmountBlock: {
+    flex: 1,
+  },
+  dailyLimitAmount: {
+    fontFamily:    fonts.bodyBold,
+    fontSize:      24,
+    color:         colors.textPrimary,
+    letterSpacing: 0.5,
+  },
+  dailyLimitSubLabel: {
+    fontFamily:    fonts.bodySemiBold,
+    fontSize:      10,
+    color:         colors.textMuted,
+    letterSpacing: 1.5,
+    marginTop:     2,
+  },
+  adjustLimitBtn: {
+    paddingVertical:   8,
+    paddingHorizontal: 12,
+    borderRadius:      radii.sm,
+    borderWidth:       1.5,
+    borderColor:       colors.primary,
+    backgroundColor:   colors.cardElevated,
+    alignItems:        'center',
+    justifyContent:    'center',
+  },
+  adjustLimitBtnText: {
+    fontFamily:    fonts.bodyBold,
+    fontSize:      12,
+    color:         colors.primary,
+    letterSpacing: 1.2,
   },
 });

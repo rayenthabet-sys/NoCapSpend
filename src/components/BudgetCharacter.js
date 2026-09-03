@@ -9,6 +9,9 @@ import {
 } from '../lib/characters';
 import { animation } from '../lib/theme';
 
+import { useAuth } from '../lib/AuthContext';
+import { getReducedMotionPreference, subscribeToReducedMotion } from '../lib/preferences';
+
 // On web, useNativeDriver: true hands off to the CSS animation driver which
 // can fail silently inside Animated.loop — the loop callback fires in JS but
 // the actual CSS animation does not reliably restart between iterations.
@@ -65,20 +68,36 @@ function BudgetCharacterComponent({
   style = undefined,
   accessibilityLabel = undefined,
 } = {}) {
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const auth = useAuth();
+  const userId = auth?.session?.user?.id;
+  const [systemReduceMotion, setSystemReduceMotion] = useState(false);
+  const [userReduceMotion, setUserReduceMotion] = useState(false);
+  const reduceMotion = Boolean(systemReduceMotion || userReduceMotion);
   const [ruckusPhase, setRuckusPhase] = useState('entrance');
 
   const heightPx = characterSizes[size] || characterSizes.medium;
   const widthPx = Math.round(heightPx * CHARACTER_ASPECT_RATIO);
 
   useEffect(() => {
-    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion);
+    AccessibilityInfo.isReduceMotionEnabled().then(setSystemReduceMotion);
     const listener = AccessibilityInfo.addEventListener?.(
       'reduceMotionChanged',
-      setReduceMotion
+      setSystemReduceMotion
     );
     return () => listener?.remove?.();
   }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      setUserReduceMotion(false);
+      return;
+    }
+    getReducedMotionPreference(userId).then(setUserReduceMotion);
+    const unsubscribe = subscribeToReducedMotion((enabled) => {
+      setUserReduceMotion(enabled);
+    });
+    return () => unsubscribe();
+  }, [userId]);
 
   // ── Ruckus state machine (W-01 guard preserved) ─────────────────
   useEffect(() => {

@@ -38,6 +38,7 @@ function barColor(state) {
  * @param {string}        [props.characterAssetId] — asset key to display as avatar
  * @param {string}        [props.characterLabel]   — state label below avatar (e.g. "CAUTION")
  * @param {Object|null}   [props.carryoverInfo]    — informational monthly carryover balance
+ * @param {(() => void)|null} [props.onAdjustLimit] — callback to open limit adjuster
  */
 export default function DailyMeter({
   dailySpent        = 0,
@@ -47,6 +48,7 @@ export default function DailyMeter({
   characterAssetId  = 'robert_neutral',
   characterLabel    = '',
   carryoverInfo     = null,
+  onAdjustLimit     = null,
 }) {
   const status = getDailyStatus(dailySpent, dailyBudget);
   const { ratio, pct, state, remaining } = status;
@@ -71,13 +73,19 @@ export default function DailyMeter({
       <View style={styles.card}>
         <View style={styles.contentRow}>
           <View style={styles.leftCol}>
-            <Text style={styles.cardTitle}>TODAY'S SPENDING</Text>
-            <Text style={styles.noBudgetText}>No daily budget set.</Text>
-            <Link href="/settings" asChild>
-              <TouchableOpacity style={styles.setupBtn}>
-                <Text style={styles.setupBtnText}>SET DAILY BUDGET →</Text>
+            <Text style={styles.cardTitle}>YOUR DAILY LIMIT</Text>
+            <Text style={styles.noBudgetText}>No daily limit set.</Text>
+            {onAdjustLimit ? (
+              <TouchableOpacity style={styles.setupBtn} onPress={onAdjustLimit}>
+                <Text style={styles.setupBtnText}>SET DAILY LIMIT →</Text>
               </TouchableOpacity>
-            </Link>
+            ) : (
+              <Link href="/settings" asChild>
+                <TouchableOpacity style={styles.setupBtn}>
+                  <Text style={styles.setupBtnText}>SET DAILY LIMIT →</Text>
+                </TouchableOpacity>
+              </Link>
+            )}
           </View>
           <View style={styles.rightCol}>
             <CharacterAvatar

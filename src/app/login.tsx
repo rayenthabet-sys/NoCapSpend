@@ -12,6 +12,7 @@ import { showAlert } from '../lib/dialog';
 import { useNetworkStatus } from '../lib/networkStatus';
 import BudgetCharacter from '../components/BudgetCharacter';
 import GlobalCornerFigure from '../components/GlobalCornerFigure';
+import AccountSuccessBanner from '../components/AccountSuccessBanner';
 
 const REMEMBER_EMAIL_KEY = '@budget_buddy:remember_account_email';
 const REMEMBER_FLAG_KEY  = '@budget_buddy:remember_account_enabled';
@@ -28,9 +29,11 @@ export default function Login() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting]           = useState(false);
   const [rememberAccount, setRememberAccount] = useState(false);
+  const [showSuccessBanner, setShowSuccessBanner] = useState(false);
 
   const passwordRef = useRef<TextInput>(null);
   const confirmPasswordRef = useRef<TextInput>(null);
+  const isSubmittingRef = useRef(false);
 
   // Load remembered email on mount
   useEffect(() => {
@@ -49,7 +52,7 @@ export default function Login() {
     })();
   }, []);
 
-  if (session) {
+  if (session && !showSuccessBanner) {
     return <Redirect href="/" />;
   }
 
@@ -100,6 +103,8 @@ export default function Login() {
   }
 
   async function signUp() {
+    if (isSubmittingRef.current || submitting) return;
+
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     const trimmedConfirm = confirmPassword.trim();
@@ -118,24 +123,29 @@ export default function Login() {
     }
 
     setSubmitting(true);
-    const { data, error } = await supabase.auth.signUp({
-      email: trimmedEmail,
-      password: trimmedPassword,
-    });
-    setSubmitting(false);
+    isSubmittingRef.current = true;
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: trimmedEmail,
+        password: trimmedPassword,
+      });
 
-    if (error) {
-      showAlert('Error', error.message);
-    } else {
-      if (data?.session) {
-        if (rememberAccount) {
-          await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, trimmedEmail);
-          await AsyncStorage.setItem(REMEMBER_FLAG_KEY, 'true');
-        }
+      if (error) {
+        showAlert('Error', error.message);
       } else {
-        showAlert('Account Created', 'Your account has been created! Please log in.');
-        switchMode('login');
+        setShowSuccessBanner(true);
+        if (data?.session) {
+          if (rememberAccount) {
+            await AsyncStorage.setItem(REMEMBER_EMAIL_KEY, trimmedEmail);
+            await AsyncStorage.setItem(REMEMBER_FLAG_KEY, 'true');
+          }
+        } else {
+          switchMode('login');
+        }
       }
+    } finally {
+      setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   }
 
@@ -170,10 +180,16 @@ export default function Login() {
           <BudgetCharacter assetId="robert_neutral" size="hero" animated />
         </View>
 
-        <Text style={styles.title}>BUDGET BUDDY</Text>
-        <Text style={styles.subtitle}>
-          {mode === 'login' ? 'TRACK YOUR FINANCES' : 'CREATE YOUR ACCOUNT'}
-        </Text>
+        <View style={styles.brandContainer}>
+          <AccountSuccessBanner
+            visible={showSuccessBanner}
+            onDismiss={() => setShowSuccessBanner(false)}
+          />
+          <Text style={styles.title}>
+            No<Text style={styles.titleAccent}>Cap</Text>Spend
+          </Text>
+          <Text style={styles.subtitle}>BOONDOCKS MODE</Text>
+        </View>
 
         {/* Tab switcher: lets the user choose Create Account first */}
         <View style={styles.tabContainer}>
@@ -316,6 +332,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  brandContainer: {
+    position: 'relative',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    zIndex: 10,
+  },
   title: {
     fontFamily: fonts.display,
     fontSize: 42,
@@ -323,12 +345,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 4,
   },
+  titleAccent: {
+    color: colors.primary,
+  },
   subtitle: {
     fontFamily: fonts.bodySemiBold,
     fontSize: 12,
     color: colors.primary,
     textAlign: 'center',
-    marginBottom: spacing.lg,
     letterSpacing: 2,
   },
 
