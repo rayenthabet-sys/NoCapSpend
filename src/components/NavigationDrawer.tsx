@@ -289,6 +289,14 @@ export default function NavigationDrawer({
               <Text style={styles.navIcon}>⚙</Text>
               <Text style={styles.navText}>SETTINGS</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navItem, currentRoute === '/download' && styles.navItemActive]}
+              onPress={() => handleNavigate('/download')}
+            >
+              <Text style={styles.navIcon}>📲</Text>
+              <Text style={styles.navText}>DOWNLOAD APK</Text>
+            </TouchableOpacity>
           </ScrollView>
 
           {/* Footer */}
