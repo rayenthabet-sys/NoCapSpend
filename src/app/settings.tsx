@@ -26,6 +26,7 @@ import {
   getReducedMotionPreference,
   setReducedMotionPreference,
 } from '../lib/preferences';
+import { clearDisposableUserCache } from '../lib/cacheCleanup';
 import { showAlert } from '../lib/dialog';
 import { useFocusEffect, Redirect } from 'expo-router';
 import { useNetworkStatus } from '../lib/networkStatus';
@@ -103,6 +104,14 @@ export default function Settings() {
         style: 'destructive',
         onPress: async () => {
           try {
+            let uid = userId;
+            if (!uid) {
+              const { data } = await supabase.auth.getSession();
+              uid = data?.session?.user?.id || null;
+            }
+            if (uid) {
+              await clearDisposableUserCache(uid);
+            }
             await supabase.auth.signOut();
           } catch (err: any) {
             showAlert('Sign Out Failed', err?.message || 'Could not sign out.');

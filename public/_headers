@@ -1,0 +1,10 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), screen-wake-lock=(), accelerometer=(), gyroscope=(), magnetometer=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' https://fonts.gstatic.com data:; connect-src 'self' https://ayueppqexwpnrenkewht.supabase.co wss://ayueppqexwpnrenkewht.supabase.co https://www.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
+
+/_expo/static/*
+  Cache-Control: public, max-age=31536000, immutable

@@ -30,6 +30,7 @@ import {
   getPendingTodaySpending,
 } from '../lib/offlineStore';
 import { syncPendingTransactions } from '../lib/syncManager';
+import { clearDisposableUserCache } from '../lib/cacheCleanup';
 import BudgetCharacter from '../components/BudgetCharacter';
 import DailyMeter from '../components/DailyMeter';
 import NetworkBanner from '../components/NetworkBanner';
@@ -262,8 +263,31 @@ export default function Home() {
 
   async function handleLogout() {
     setShowFarewell(true);
+    let uid = session?.user?.id;
+    if (!uid) {
+      try {
+        const { data } = await supabase.auth.getSession();
+        uid = data?.session?.user?.id;
+      } catch {}
+    }
     Animated.timing(fadeAnim, { toValue: 0, duration: 800, useNativeDriver: true })
-      .start(async () => { await supabase.auth.signOut(); });
+      .start(async () => {
+        try {
+          if (uid) {
+            await clearDisposableUserCache(uid);
+          }
+        } finally {
+          setIncome(0);
+          setExpenses(0);
+          setAccumulatedSavings(0);
+          setReservedForGoals(0);
+          setRecentTx([]);
+          setDailySpent(0);
+          setDailyBudget(null);
+          setDailyLockEnabled(false);
+          await supabase.auth.signOut();
+        }
+      });
   }
 
   // ── Derived financial values ─────────────────────────────────────
